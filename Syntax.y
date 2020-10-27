@@ -58,18 +58,15 @@ Program:
   |                                                           { Program [] [] [] }
 
 DefVars:
-  DefVar DefVars                                              { $1 : $2 }
-  | DefVar                                                    { [$1] }
+  "var" DefVar DefVars                                        { $2 : $3 }
+  | "var" DefVar                                              { [$2] }
   |                                                           { [] }
 
 DefVar:
-  "var" DefVarLines                                           { $2 }
+  DefVarBlock DefVar                                          { $1 : $2 }
+  | DefVarBlock                                               { [$1] }
 
-DefVarLines:
-  DefVarLine DefVarLines                                      { $1 : $2 }
-  | DefVarLine                                                { [$1] }
-
-DefVarLine:
+DefVarBlock:
   Variables ":" type ";"                                      { ($1, Type $3) }
 
 Variables:
@@ -82,19 +79,19 @@ Functions:
   |                                                           { [] }
 
 Function:
-  DefFunction DefVars "begin" Operators "end" ";"             { Function $1 $2 $4 }
+  DefFunction ";" DefVars "begin" Operators "end" ";"         { Function $1 $3 $5 }
 
 DefFunction:
-  "function" variable "(" Arguements ")" ":" type ";"         { ((Var $2, Type $7), $4) }
-  | "function" variable "(" ")" ":" type ";"                  { ((Var $2, Type $6), []) }
-  | "procedure" variable "(" Arguements ")" ";"               { ((Var $2, Type ""), $4) }
-  | "procedure" variable ";"                                  { ((Var $2, Type ""), []) }
+  "function" variable "(" Arguments ")" ":" type              { ((Var $2, Type $7), $4) }
+  | "function" variable "(" ")" ":" type                      { ((Var $2, Type $6), []) }
+  | "procedure" variable "(" Arguments ")"                    { ((Var $2, Type ""), $4) }
+  | "procedure" variable                                      { ((Var $2, Type ""), []) }
 
-Arguements:
-  Arguement ";" Arguements                                    { $1 : $3 }
-  | Arguement                                                 { [$1] }
+Arguments:
+  Argument ";" Arguments                                      { $1 : $3 }
+  | Argument                                                  { [$1] }
 
-Arguement:
+Argument:
   Variables ":" type                                          { ($1, Type $3) }
 
 Operators:
@@ -120,12 +117,12 @@ ElsePart:
   |                                                           { [] }
 
 Expression:
-  Expression "<" SumSubOrXor                                 { LT_ $1 $3 }
-  | Expression ">" SumSubOrXor                               { GT_ $1 $3 }
-  | Expression "<=" SumSubOrXor                              { LTE_ $1 $3 }
-  | Expression ">=" SumSubOrXor                              { GTE_ $1 $3 }
-  | Expression "=" SumSubOrXor                               { Eq $1 $3 }
-  | Expression "<>" SumSubOrXor                              { NotEq $1 $3 }
+  Expression "<" SumSubOrXor                                  { LT_ $1 $3 }
+  | Expression ">" SumSubOrXor                                { GT_ $1 $3 }
+  | Expression "<=" SumSubOrXor                               { LTE_ $1 $3 }
+  | Expression ">=" SumSubOrXor                               { GTE_ $1 $3 }
+  | Expression "=" SumSubOrXor                                { Eq $1 $3 }
+  | Expression "<>" SumSubOrXor                               { NotEq $1 $3 }
   | SumSubOrXor                                               { $1 }
 
 SumSubOrXor:

@@ -8,6 +8,7 @@ import Lexer
 %error { parseError }
 
 %token
+  qstring     { TStr $$ }
   bool        { TBool $$ }
   type        { TType $$ }
   "("         { TLeftParen }
@@ -49,18 +50,25 @@ import Lexer
   "xor"       { TXor }
   variable    { TVariable $$ }
   number      { TNumber $$ }
-  qstring     { TStr $$ }
+
+%right "if" "then" "else"
 
 %%
 
 Program:
   DefVars Functions "begin" Operators "end" "."               { Program $1 $2 $4 }
+  | DefVars "begin" Operators "end" "."                       { Program $1 [] $3 }
+  | Functions "begin" Operators "end" "."                     { Program [] $1 $3 }
+  | DefVars Functions "begin" "end" "."                       { Program $1 $2 [] }
+  | "begin" Operators "end" "."                               { Program [] [] $2 }
+  | Functions "begin" "end" "."                               { Program [] $1 [] }
+  | DefVars "begin" "end" "."                                 { Program $1 [] [] }
+  | "begin" "end" "."                                         { Program [] [] [] }
   |                                                           { Program [] [] [] }
 
 DefVars:
   "var" DefVar DefVars                                        { $2 : $3 }
   | "var" DefVar                                              { [$2] }
-  |                                                           { [] }
 
 DefVar:
   DefVarBlock DefVar                                          { $1 : $2 }
@@ -76,10 +84,12 @@ Variables:
 Functions:
   Function Functions                                          { $1 : $2 }
   | Function                                                  { [$1] }
-  |                                                           { [] }
 
 Function:
   DefFunction ";" DefVars "begin" Operators "end" ";"         { Function $1 $3 $5 }
+  | DefFunction ";" "begin" Operators "end" ";"               { Function $1 [] $4 }
+  | DefFunction ";" DefVars "begin" "end" ";"                 { Function $1 $3 [] }
+  | DefFunction ";" "begin" "end" ";"                         { Function $1 [] [] }
 
 DefFunction:
   "function" variable "(" Arguments ")" ":" type              { ((Var $2, Type $7), $4) }
@@ -97,7 +107,6 @@ Argument:
 Operators:
   Operator ";" Operators                                      { (Operator $1) : $3 }
   | Operator ";"                                              { [Operator $1] }
-  |                                                           { [] }
 
 Operator:
   variable ":=" Expression                                    { Assign (Var $1) $3 }
@@ -107,14 +116,17 @@ Operator:
   | "writeln" "(" Expression ")"                              { Writeln $3 }
   | "while" Expression "do" "begin" Operators "end"           { While $2 $5 }
   | "while" Expression "do" Operator                          { While $2 [Operator $4] }
-  | "if" Expression "then" "begin" Operators "end" ElsePart   { If $2 $5 $7 }
-  | "if" Expression "then" Operator ElsePart                  { If $2 [Operator $4] $5 }
+  | "if" Expression ThenPart ElsePart                         { If $2 $3 $4 }
+  | "if" Expression ThenPart                                  { If $2 $3 [] }
   | variable                                                  { Var $1 }
+
+ThenPart:
+  "then" "begin" Operators "end"                              { $3 }
+  | "then" Operator                                           { [Operator $2] }
 
 ElsePart:
   "else" "begin" Operators "end"                              { $3 }
   | "else" Operator                                           { [Operator $2] }
-  |                                                           { [] }
 
 Expression:
   Expression "<" SumSubOrXor                                  { LT_ $1 $3 }

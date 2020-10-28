@@ -8,6 +8,7 @@ $alpha = [A-Za-z]
 $digit = [0-9]
 
 tokens :-
+  \" [^\"]* \"                              { \str -> TStr str }
   "True" | "False"                          { \str -> TBool str }
   "integer" | "real" | "boolean" | "string" { \str -> TType str }
   "("                                       { \str -> TLeftParen }
@@ -49,7 +50,6 @@ tokens :-
   "xor"                                     { \str -> TXor }
   $alpha [$alpha $digit \_ \-]*             { \str -> TVariable str }
   ([1-9] $digit* | 0) (\. $digit+)?         { \str -> TNumber str }
-  \" [^\"]* \"                              { \str -> TStr str }
   $white                                    ;
 
 {

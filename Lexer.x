@@ -8,8 +8,9 @@ $alpha = [A-Za-z]
 $digit = [0-9]
 
 tokens :-
-  \" [^\"]* \"                              { \str -> TStr str }
-  "True" | "False"                          { \str -> TBool str }
+  \" [^\"]* \"                              { \str -> TStr $ tail $ init str }
+  "True"                                    { \str -> TBool True }
+  "False"                                   { \str -> TBool False }
   "integer" | "real" | "boolean" | "string" { \str -> TType str }
   "("                                       { \str -> TLeftParen }
   ")"                                       { \str -> TRightParen }
@@ -49,15 +50,17 @@ tokens :-
   "not"                                     { \str -> TNot }
   "xor"                                     { \str -> TXor }
   $alpha [$alpha $digit \_ \-]*             { \str -> TVariable str }
-  ([1-9] $digit* | 0) (\. $digit+)?         { \str -> TNumber str }
+  ([1-9] $digit* | 0) \. $digit+            { \str -> TRealNum ((read str) :: Float) }
+  ([1-9] $digit* | 0)                       { \str -> TIntNum ((read str) :: Integer) }
   $white                                    ;
 
 {
 data Token =
   TVariable String |
-  TNumber String |
+  TRealNum Float |
+  TIntNum Integer |
   TStr String |
-  TBool String |
+  TBool Bool |
   TType String |
   TLeftParen |
   TRightParen |

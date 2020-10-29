@@ -119,14 +119,14 @@ Argument :: { ([Prgm], Prgm) }
 Argument:
   Variables ":" type                                          { ($1, Type $3) }
 
-Operators :: { [Prgm] }
+Operators :: { [Operator] }
 Operators:
   Operator ";" Operators                                      { (Operator $1) : $3 }
   | Operator ";"                                              { [Operator $1] }
 
 Operator :: { forall expr. PascalExpr expr => expr () }
 Operator:
-  variable ":=" Expression                                    { peAssign (Var $1) $3 }
+  variable ":=" Expression                                    { peAssign (peVar $1) $3 }
   | "read" "(" Expression ")"                                 { peRead $3 }
   | "readln" "(" Expression ")"                               { peReadln $3 }
   | "write" "(" Expression ")"                                { peWrite $3 }
@@ -135,14 +135,15 @@ Operator:
   | "while" Expression "do" Operator                          { peWhile $2 [Operator $4] }
   | "if" Expression ThenPart ElsePart                         { peIf $2 $3 $4 }
   | "if" Expression ThenPart                                  { peIf $2 $3 [] }
-  | variable                                                  { peFunApply (Var $1) [] }
+  | variable "(" PassedArgs ")"                               { peFunApply (peVar $1) $3 }
+  | variable                                                  { peFunApply (peVar $1) [] }
 
-ThenPart :: { [Prgm] }
+ThenPart :: { [Operator] }
 ThenPart:
   "then" "begin" Operators "end"                              { $3 }
   | "then" Operator                                           { [Operator $2] }
 
-ElsePart :: { [Prgm] }
+ElsePart :: { [Operator] }
 ElsePart:
   "else" "begin" Operators "end"                              { $3 }
   | "else" Operator                                           { [Operator $2] }
@@ -179,7 +180,7 @@ Unary:
   "not" Unary                                                 { peNot $2 }
   | "-" Unary                                                 { peNeg $2 }
   | "+" Unary                                                 { pePos $2 }
-  | variable "(" PassedArgs ")"                               { peFunApply (Var $1) $3 }
+  | variable "(" PassedArgs ")"                               { peFunApply (peVar $1) $3 }
   | variable                                                  { peVar $1 }
   | real                                                      { peReal $1 }
   | int                                                       { peInt $1 }
@@ -194,25 +195,26 @@ PassedArgs:
   |                                                           { [] }
 
 {
+newtype Operator = Operator (forall expr. PascalExpr expr => expr ())
+
 data Prgm =
-  Program [Prgm] [Prgm] [Prgm]
+  Program [Prgm] [Prgm] [Operator]
   | VarBlock [Prgm]
   | VarLine ([Prgm], Prgm)
-  | Function ((Prgm, Prgm), [Prgm]) [Prgm] [Prgm]
+  | Function ((Prgm, Prgm), [Prgm]) [Prgm] [Operator]
   | FunArg ([Prgm], Prgm)
-  | Operator (forall expr. PascalExpr expr => expr ())
   | Var String
   | Type String
 
 class PascalExpr expr where
-  peAssign   :: Prgm -> expr () -> expr ()
+  peAssign   :: expr () -> expr () -> expr ()
   peRead     :: expr t -> expr t
   peReadln   :: expr t -> expr t
   peWrite    :: expr t -> expr t
   peWriteln  :: expr t -> expr t
-  peWhile    :: expr t -> [Prgm] -> expr ()
-  peIf       :: expr t -> [Prgm] -> [Prgm] -> expr ()
-  peFunApply :: Prgm -> [expr t] -> expr ()
+  peWhile    :: expr t -> [Operator] -> expr ()
+  peIf       :: expr t -> [Operator] -> [Operator] -> expr ()
+  peFunApply :: expr () -> [expr t] -> expr ()
   peLT       :: expr t -> expr t -> expr t
   peGT       :: expr t -> expr t -> expr t
   peLTE      :: expr t -> expr t -> expr t

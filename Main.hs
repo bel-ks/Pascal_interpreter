@@ -1,4 +1,7 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Main where
+
 import Control.Monad.State
 import Lexer
 import Syntax
@@ -7,51 +10,98 @@ import System.IO
 type TabCount = Int
 type PrEnv = (TabCount, String)
 
+newtype OpToString a = OpToString {toString :: String}
+  deriving (Show, Semigroup)
+
+instance PascalExpr OpToString where
+  peAssign v e = v <> OpToString " := " <> e
+  peRead e = OpToString "read(" <> e <> OpToString ")"
+  peReadln e = OpToString "readln(" <> e <> OpToString ")"
+  peWrite e = OpToString "write(" <> e <> OpToString ")"
+  peWriteln e = OpToString "writeln(" <> e <> OpToString ")"
+  peWhile = undefined
+  peIf c t e = undefined
+  peFunApply = undefined
+  peLT a b = a <> OpToString " < " <> b
+  peGT a b = a <> OpToString " > " <> b
+  peLTE a b = a <> OpToString " <= " <> b
+  peGTE a b = a <> OpToString " >= " <> b
+  peEq a b = a <> OpToString " = " <> b
+  peNotEq a b = a <> OpToString " <> " <> b
+  peSum a b = a <> OpToString " + " <> b
+  peSub a b = a <> OpToString " - " <> b
+  peOr a b = a <> OpToString " or " <> b
+  peXor a b = a <> OpToString " xor " <> b
+  peMul a b = a <> OpToString " * " <> b
+  peDivide a b = a <> OpToString " / " <> b
+  peDiv a b = a <> OpToString " div " <> b
+  peMod a b = a <> OpToString " mod " <> b
+  peAnd a b = a <> OpToString " and " <> b
+  peNot e = OpToString "not " <> e
+  peNeg e = OpToString "-" <> e
+  pePos e = OpToString "+" <> e
+  peVar = OpToString
+  peReal = OpToString . show
+  peInt = OpToString . show
+  peStr = OpToString
+  peBool = OpToString . show
+  peBr e = OpToString "(" <> e <> OpToString ")"
+
 tab :: String
 tab = "  "
 
 comma :: String
 comma = ", "
 
-prettyPrintingList :: String -> [Prgm] -> State PrEnv String
-prettyPrintingList _ [] = do
+prettyPrintOperators :: [Operator] -> State PrEnv String
+prettyPrintOperators [] =
   gets (\(_, r) -> r)
-prettyPrintingList _ (p : []) =
-  prettyPrintingPrgm p
-prettyPrintingList sep (p : ps) = do
-  prettyPrintingPrgm p
-  modify (\(tc, r) -> (tc, r ++ sep))
-  prettyPrintingList sep ps
+prettyPrintOperators ((Operator op) : []) = do
+  modify (\(tc, r) -> (tc, r ++ (concat $ replicate tc tab) ++ (toString op)))
+  gets (\(_, r) -> r)
+prettyPrintOperators ((Operator op) : ops) = do
+  modify (\(tc, r) -> (tc, r ++ (concat $ replicate tc tab) ++ (toString op) ++ ";\n"))
+  prettyPrintOperators ops
 
-prettyPrintingPrgm :: Prgm -> State PrEnv String
-prettyPrintingPrgm (Program vb fb ob) = do
-  prettyPrintingList "\n" vb
+prettyPrintList :: String -> [Prgm] -> State PrEnv String
+prettyPrintList _ [] =
+  gets (\(_, r) -> r)
+prettyPrintList _ (p : []) =
+  prettyPrintPrgm p
+prettyPrintList sep (p : ps) = do
+  prettyPrintPrgm p
+  modify (\(tc, r) -> (tc, r ++ sep))
+  prettyPrintList sep ps
+
+prettyPrintPrgm :: Prgm -> State PrEnv String
+prettyPrintPrgm (Program vb fb ob) = do
+  prettyPrintList "\n" vb
   if null vb
     then return ()
     else modify (\(tc, r) -> (tc, r ++ ";\n\n"))
-  prettyPrintingList "\n" fb
+  prettyPrintList "\n" fb
   if null fb
-    then modify (\(tc, r) -> (tc, r ++ "begin\n"))
-    else modify (\(tc, r) -> (tc, r ++ "\nbegin\n"))
-  prettyPrintingList "\n" ob
+    then modify (\(tc, r) -> (tc + 1, r ++ "begin\n"))
+    else modify (\(tc, r) -> (tc + 1, r ++ "\nbegin\n"))
+  prettyPrintOperators ob
   if null ob
-    then modify (\(tc, r) -> (tc, r ++ "end."))
-    else modify (\(tc, r) -> (tc, r ++ ";\nend."))
+    then modify (\(tc, r) -> (tc - 1, r ++ "end."))
+    else modify (\(tc, r) -> (tc - 1, r ++ ";\nend."))
   gets (\(_, r) -> r)
-prettyPrintingPrgm (VarBlock vl) = do
+prettyPrintPrgm (VarBlock vl) = do
   modify (\(tc, r) -> (tc, r ++ "var "))
-  prettyPrintingList ";\n    " vl
-prettyPrintingPrgm (VarLine (vs, t)) = do
-  prettyPrintingList comma vs
+  prettyPrintList ";\n    " vl
+prettyPrintPrgm (VarLine (vs, t)) = do
+  prettyPrintList comma vs
   modify (\(tc, r) -> (tc, r ++ ": "))
-  prettyPrintingPrgm t
-prettyPrintingPrgm (Var v) = do
+  prettyPrintPrgm t
+prettyPrintPrgm (Var v) = do
   modify (\(tc, r) -> (tc, r ++ v))
   gets (\(_, r) -> r)
-prettyPrintingPrgm (Type t) = do
+prettyPrintPrgm (Type t) = do
   modify (\(tc, r) -> (tc, r ++ t))
   gets (\(_, r) -> r)
-prettyPrintingPrgm (Function ((n, t), ars) vb ob) = do
+prettyPrintPrgm (Function ((n, t), ars) vb ob) = do
   let isProcedure = case t of
                       (Type "") -> True
                       _         -> False
@@ -59,45 +109,45 @@ prettyPrintingPrgm (Function ((n, t), ars) vb ob) = do
                   then "procedure "
                   else "function "
   modify (\(tc, r) -> (tc, r ++ funType))
-  prettyPrintingPrgm n
+  prettyPrintPrgm n
   if null ars
     then if isProcedure
       then gets (\(_, r) -> r)
       else do
         modify (\(tc, r) -> (tc, r ++ "(): "))
-        prettyPrintingPrgm t
+        prettyPrintPrgm t
     else do
       modify (\(tc, r) -> (tc, r ++ "("))
-      prettyPrintingList "; " ars
+      prettyPrintList "; " ars
       if isProcedure
         then do
           modify (\(tc, r) -> (tc, r ++ ")"))
           gets (\(_, r) -> r)
         else do
           modify (\(tc, r) -> (tc, r ++ "): "))
-          prettyPrintingPrgm t
+          prettyPrintPrgm t
   modify (\(tc, r) -> (tc, r ++ ";\n"))
-  prettyPrintingList ";\n    " vb
+  prettyPrintList ";\n    " vb
   if null vb
     then return ()
     else modify (\(tc, r) -> (tc, r ++ ";\n"))
-  modify (\(tc, r) -> (tc, r ++ "begin\n"))
-  prettyPrintingList ";\n" ob
+  modify (\(tc, r) -> (tc + 1, r ++ "begin\n"))
+  prettyPrintOperators ob
   if null ob
-    then modify (\(tc, r) -> (tc, r ++ "end;\n"))
-    else modify (\(tc, r) -> (tc, r ++ ";\nend;\n"))
+    then modify (\(tc, r) -> (tc - 1, r ++ "end;\n"))
+    else modify (\(tc, r) -> (tc - 1, r ++ ";\nend;\n"))
   gets (\(_, r) -> r)
-prettyPrintingPrgm (FunArg (vs, t)) = do
-  prettyPrintingList comma vs
+prettyPrintPrgm (FunArg (vs, t)) = do
+  prettyPrintList comma vs
   modify (\(tc, r) -> (tc, r ++ ": "))
-  prettyPrintingPrgm t
+  prettyPrintPrgm t
 
-prettyPrinting :: Prgm -> String
-prettyPrinting p = evalState (prettyPrintingPrgm p) (0, "")
+prettyPrint :: Prgm -> String
+prettyPrint p = evalState (prettyPrintPrgm p) (0, "")
 
 main :: IO()
 main = do
   inh <- openFile "in.txt" ReadMode
   input <- hGetContents inh
   let parseResult = parseProgram (alexScanTokens input)
-  putStrLn $ prettyPrinting parseResult
+  putStrLn $ prettyPrint parseResult

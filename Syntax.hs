@@ -1785,13 +1785,13 @@ happyReduction_41 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_1)) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn15
-		 (peFunApply (peVar happy_var_1) happy_var_3
+		 (peFunApply (peVar happy_var_1) happy_var_3 False
 	) `HappyStk` happyRest
 
 happyReduce_42 = happySpecReduce_1  15 happyReduction_42
 happyReduction_42 (HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn15
-		 (peFunApply (peVar happy_var_1) []
+		 (peFunApply (peVar happy_var_1) [] True
 	)
 happyReduction_42 _  = notHappyAtAll 
 
@@ -2018,7 +2018,7 @@ happyReduction_68 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_1)) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn15
-		 (peFunApply (peVar happy_var_1) happy_var_3
+		 (peFunApply (peVar happy_var_1) happy_var_3 False
 	) `HappyStk` happyRest
 
 happyReduce_69 = happySpecReduce_1  21 happyReduction_69
@@ -2187,9 +2187,9 @@ class PascalExpr expr where
   peReadln   :: expr t -> expr t
   peWrite    :: expr t -> expr t
   peWriteln  :: expr t -> expr t
-  peWhile    :: expr t -> [Operator] -> expr ()
-  peIf       :: expr t -> [Operator] -> [Operator] -> expr ()
-  peFunApply :: expr () -> [expr t] -> expr ()
+  peWhile    :: expr t -> [Operator] -> expr t
+  peIf       :: expr t -> [Operator] -> [Operator] -> expr t
+  peFunApply :: expr () -> [expr ()] -> Bool -> expr ()
   peLT       :: expr t -> expr t -> expr t
   peGT       :: expr t -> expr t -> expr t
   peLTE      :: expr t -> expr t -> expr t

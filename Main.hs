@@ -19,9 +19,25 @@ instance PascalExpr OpToString where
   peReadln e = OpToString "readln(" <> e <> OpToString ")"
   peWrite e = OpToString "write(" <> e <> OpToString ")"
   peWriteln e = OpToString "writeln(" <> e <> OpToString ")"
-  peWhile = undefined
-  peIf c t e = undefined
-  peFunApply = undefined
+  peWhile c ops = OpToString "while " <> c <> OpToString " do\n"
+                  <> (if (length ops > 1)
+                        then OpToString "  begin\n" <> (OpToString (evalState (prettyPrintOperators ops) (2, ""))) <> OpToString ";\n  end"
+                        else OpToString (evalState (prettyPrintOperators ops) (2, "")))
+  peIf c t e = OpToString "if " <> c <> OpToString " then\n"
+               <> (if (length t > 1)
+                     then OpToString "  begin\n" <> (OpToString (evalState (prettyPrintOperators t) (2, ""))) <> OpToString ";\n  end"
+                     else OpToString (evalState (prettyPrintOperators t) (2, "")))
+               <> (if null e
+                     then OpToString ""
+                     else OpToString "\n  else\n"
+                          <> (if (length e > 1)
+                                then OpToString "  begin\n" <> (OpToString (evalState (prettyPrintOperators e) (2, ""))) <> OpToString ";\n  end"
+                                else OpToString (evalState (prettyPrintOperators e) (2, ""))))
+  peFunApply f vs isPr
+    | isPr && (null vs) = f
+    | otherwise = f <> OpToString "("
+                    <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
+                    <> (last vs) <> OpToString ")"
   peLT a b = a <> OpToString " < " <> b
   peGT a b = a <> OpToString " > " <> b
   peLTE a b = a <> OpToString " <= " <> b

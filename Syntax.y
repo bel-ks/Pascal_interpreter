@@ -135,8 +135,8 @@ Operator:
   | "while" Expression "do" Operator                          { peWhile $2 [Operator $4] }
   | "if" Expression ThenPart ElsePart                         { peIf $2 $3 $4 }
   | "if" Expression ThenPart                                  { peIf $2 $3 [] }
-  | variable "(" PassedArgs ")"                               { peFunApply (peVar $1) $3 }
-  | variable                                                  { peFunApply (peVar $1) [] }
+  | variable "(" PassedArgs ")"                               { peFunApply (peVar $1) $3 False }
+  | variable                                                  { peFunApply (peVar $1) [] True }
 
 ThenPart :: { [Operator] }
 ThenPart:
@@ -180,7 +180,7 @@ Unary:
   "not" Unary                                                 { peNot $2 }
   | "-" Unary                                                 { peNeg $2 }
   | "+" Unary                                                 { pePos $2 }
-  | variable "(" PassedArgs ")"                               { peFunApply (peVar $1) $3 }
+  | variable "(" PassedArgs ")"                               { peFunApply (peVar $1) $3 False }
   | variable                                                  { peVar $1 }
   | real                                                      { peReal $1 }
   | int                                                       { peInt $1 }
@@ -212,9 +212,9 @@ class PascalExpr expr where
   peReadln   :: expr t -> expr t
   peWrite    :: expr t -> expr t
   peWriteln  :: expr t -> expr t
-  peWhile    :: expr t -> [Operator] -> expr ()
-  peIf       :: expr t -> [Operator] -> [Operator] -> expr ()
-  peFunApply :: expr () -> [expr t] -> expr ()
+  peWhile    :: expr t -> [Operator] -> expr t
+  peIf       :: expr t -> [Operator] -> [Operator] -> expr t
+  peFunApply :: expr () -> [expr ()] -> Bool -> expr ()
   peLT       :: expr t -> expr t -> expr t
   peGT       :: expr t -> expr t -> expr t
   peLTE      :: expr t -> expr t -> expr t

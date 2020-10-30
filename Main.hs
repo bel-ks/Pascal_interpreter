@@ -3,6 +3,8 @@
 
 module Main where
 
+import Control.Exception
+import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.State
 import Control.Lens
@@ -35,6 +37,13 @@ data InEnv = InEnv
   deriving Show
 
 makeLenses ''InEnv
+
+data AlreadyUsedVarException = AlreadyUsedVarException String
+
+instance Exception AlreadyUsedVarException
+
+instance Show AlreadyUsedVarException where
+  show (AlreadyUsedVarException e) = "AlreadyUsedVarException: " ++ e
 
 newtype Interpret a = Interpret {interpret :: a}
   deriving Functor
@@ -74,20 +83,30 @@ instance PascalExpr Interpret where
   peBool = Interpret
   peBr e = undefined
 
+checkVariables :: [Prgm] -> Prgm -> StateT InEnv IO()
+checkVariables vs (Type t) = do
+  env <- get
+  forM_ vs (\(Var v) ->
+    if Map.member v (view varTypes env)
+      then lift $ throwIO $ AlreadyUsedVarException ("Variable " ++ v ++ " is already used with another or same type.")
+      else modify (\env -> over varTypes (Map.insert v t) env))
+
+collectVariables :: [Prgm] -> StateT InEnv IO()
+collectVariables [] = return ()
+collectVariables ((VarLine (vs, t)) : []) =
+  checkVariables vs t
+collectVariables ((VarLine (vs, t)) : ps) = do
+  checkVariables vs t
+  collectVariables ps
+
 collectFunsAndProcs :: [Prgm] -> StateT InEnv IO()
 collectFunsAndProcs [] = return ()
 collectFunsAndProcs (fp : []) = undefined
 collectFunsAndProcs (fp : fps) = undefined
 
-collectVariables :: [Prgm] -> StateT InEnv IO()
-collectVariables [] = return ()
-collectVariables ((VarLine (vs, t)) : []) = do
-  env <- get
-  lift $ putStrLn $ show env
-collectVariables (p : ps) = undefined
-
 prgmInterpret :: Prgm -> StateT InEnv IO()
-prgmInterpret (Program vb fb ob) = undefined
+prgmInterpret (Program vb fb ob) = do
+  forM_ vb (\(VarBlock vl) -> collectVariables vl)
 
 main :: IO()
 main = do

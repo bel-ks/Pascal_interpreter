@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module PrettyPrinter where
 
@@ -16,21 +17,24 @@ comma :: String
 comma = ", "
 
 newtype OpToString a = OpToString {toString :: String}
-  deriving (Show, Semigroup)
+  deriving (Show, Semigroup, Functor)
+
+castST :: OpToString a -> OpToString b
+castST (OpToString s) = OpToString s
 
 instance PascalExpr OpToString where
-  peAssign v e = v <> OpToString " := " <> e
+  peAssign v e = castST v <> OpToString " := " <> castST e
   peRead e = OpToString "read(" <> e <> OpToString ")"
   peReadln e = OpToString "readln(" <> e <> OpToString ")"
   peWrite e = OpToString "write(" <> e <> OpToString ")"
   peWriteln e = OpToString "writeln(" <> e <> OpToString ")"
-  peWhile c ops = OpToString "while " <> c <> OpToString " do\n"
+  peWhile c ops = OpToString "while " <> castST c <> OpToString " do\n"
                   <> (if (length ops > 1)
                         then OpToString "  begin\n"
                              <> (OpToString (evalState (prettyPrintOperators ops) (2, "")))
                              <> OpToString ";\n  end"
                         else OpToString (evalState (prettyPrintOperators ops) (2, "")))
-  peIf c t e = OpToString "if " <> c <> OpToString " then\n"
+  peIf c t e = OpToString "if " <> castST c <> OpToString " then\n"
                <> (if (length t > 1)
                      then OpToString "  begin\n"
                           <> (OpToString (evalState (prettyPrintOperators t) (2, "")))
@@ -44,17 +48,20 @@ instance PascalExpr OpToString where
                                      <> (OpToString (evalState (prettyPrintOperators e) (2, "")))
                                      <> OpToString ";\n  end"
                                 else OpToString (evalState (prettyPrintOperators e) (2, ""))))
-  peFunApply f vs isPr
+  peProcApply f vs isPr
     | isPr && (null vs) = f
     | otherwise = f <> OpToString "("
                     <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
                     <> (last vs) <> OpToString ")"
-  peLT a b = a <> OpToString " < " <> b
-  peGT a b = a <> OpToString " > " <> b
-  peLTE a b = a <> OpToString " <= " <> b
-  peGTE a b = a <> OpToString " >= " <> b
-  peEq a b = a <> OpToString " = " <> b
-  peNotEq a b = a <> OpToString " <> " <> b
+  peFunApply f vs = f <> OpToString "("
+                    <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
+                    <> (last vs) <> OpToString ")"
+  peLT a b = castST a <> OpToString " < " <> castST b
+  peGT a b = castST a <> OpToString " > " <> castST b
+  peLTE a b = castST a <> OpToString " <= " <> castST b
+  peGTE a b = castST a <> OpToString " >= " <> castST b
+  peEq a b = castST a <> OpToString " = " <> castST b
+  peNotEq a b = castST a <> OpToString " <> " <> castST b
   peSum a b = a <> OpToString " + " <> b
   peSub a b = a <> OpToString " - " <> b
   peOr a b = a <> OpToString " or " <> b

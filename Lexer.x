@@ -8,7 +8,7 @@ $alpha = [A-Za-z]
 $digit = [0-9]
 
 tokens :-
-  \" [^\"]* \"                              { \str -> TStr $ tail $ init str }
+  \" [^\"]* \"                              { \str -> TStr str }
   "True"                                    { \str -> TBool True }
   "False"                                   { \str -> TBool False }
   "integer" | "real" | "boolean" | "string" { \str -> TType str }

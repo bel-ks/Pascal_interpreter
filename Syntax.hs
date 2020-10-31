@@ -2,8 +2,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Syntax where
+
+import Data.Bits
 import Lexer
 import qualified Data.Array as Happy_Data_Array
 import qualified Data.Bits as Bits
@@ -19,7 +22,8 @@ data HappyAbsSyn
 	| HappyAbsSyn5 ([Prgm])
 	| HappyAbsSyn7 (([Prgm], Prgm))
 	| HappyAbsSyn14 ([Operator])
-	| HappyAbsSyn15 (forall expr. PascalExpr expr => expr Variable)
+	| HappyAbsSyn15 (forall expr. PascalExpr expr => expr ())
+	| HappyAbsSyn24 (forall expr. PascalExpr expr => expr Variable)
 	| HappyAbsSyn25 (forall expr. PascalExpr expr => expr Bool)
 	| HappyAbsSyn34 (forall expr. PascalExpr expr => expr Number)
 	| HappyAbsSyn39 (forall expr. PascalExpr expr => expr String)
@@ -2778,17 +2782,17 @@ happyReduction_37 (HappyAbsSyn15  happy_var_1)
 happyReduction_37 _  = notHappyAtAll 
 
 happyReduce_38 = happySpecReduce_3  16 happyReduction_38
-happyReduction_38 (HappyAbsSyn15  happy_var_3)
+happyReduction_38 (HappyAbsSyn24  happy_var_3)
 	_
 	(HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn15
-		 (peAssign (peVar happy_var_1) happy_var_3
+		 (peAssign (Var happy_var_1) happy_var_3
 	)
 happyReduction_38 _ _ _  = notHappyAtAll 
 
 happyReduce_39 = happyReduce 4 17 happyReduction_39
 happyReduction_39 (_ `HappyStk`
-	(HappyAbsSyn15  happy_var_3) `HappyStk`
+	(HappyAbsSyn24  happy_var_3) `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
 	happyRest)
@@ -2798,7 +2802,7 @@ happyReduction_39 (_ `HappyStk`
 
 happyReduce_40 = happyReduce 4 17 happyReduction_40
 happyReduction_40 (_ `HappyStk`
-	(HappyAbsSyn15  happy_var_3) `HappyStk`
+	(HappyAbsSyn24  happy_var_3) `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
 	happyRest)
@@ -2808,7 +2812,7 @@ happyReduction_40 (_ `HappyStk`
 
 happyReduce_41 = happyReduce 4 18 happyReduction_41
 happyReduction_41 (_ `HappyStk`
-	(HappyAbsSyn15  happy_var_3) `HappyStk`
+	(HappyAbsSyn24  happy_var_3) `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
 	happyRest)
@@ -2818,7 +2822,7 @@ happyReduction_41 (_ `HappyStk`
 
 happyReduce_42 = happyReduce 4 18 happyReduction_42
 happyReduction_42 (_ `HappyStk`
-	(HappyAbsSyn15  happy_var_3) `HappyStk`
+	(HappyAbsSyn24  happy_var_3) `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
 	happyRest)
@@ -2951,7 +2955,7 @@ happyReduction_55 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_1)) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn15
-		 (peProcApply (peVar happy_var_1) happy_var_3 False
+		 (peProcApply (Var happy_var_1) happy_var_3 False
 	) `HappyStk` happyRest
 
 happyReduce_56 = happySpecReduce_3  23 happyReduction_56
@@ -2959,41 +2963,41 @@ happyReduction_56 _
 	_
 	(HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn15
-		 (peProcApply (peVar happy_var_1) [] False
+		 (peProcApply (Var happy_var_1) [] False
 	)
 happyReduction_56 _ _ _  = notHappyAtAll 
 
 happyReduce_57 = happySpecReduce_1  23 happyReduction_57
 happyReduction_57 (HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn15
-		 (peProcApply (peVar happy_var_1) [] True
+		 (peProcApply (Var happy_var_1) [] True
 	)
 happyReduction_57 _  = notHappyAtAll 
 
 happyReduce_58 = happySpecReduce_1  24 happyReduction_58
 happyReduction_58 (HappyAbsSyn25  happy_var_1)
-	 =  HappyAbsSyn15
+	 =  HappyAbsSyn24
 		 (fmap BoolCons happy_var_1
 	)
 happyReduction_58 _  = notHappyAtAll 
 
 happyReduce_59 = happySpecReduce_1  24 happyReduction_59
 happyReduction_59 (HappyAbsSyn25  happy_var_1)
-	 =  HappyAbsSyn15
+	 =  HappyAbsSyn24
 		 (fmap BoolCons happy_var_1
 	)
 happyReduction_59 _  = notHappyAtAll 
 
 happyReduce_60 = happySpecReduce_1  24 happyReduction_60
 happyReduction_60 (HappyAbsSyn34  happy_var_1)
-	 =  HappyAbsSyn15
+	 =  HappyAbsSyn24
 		 (fmap NumCons happy_var_1
 	)
 happyReduction_60 _  = notHappyAtAll 
 
 happyReduce_61 = happySpecReduce_1  24 happyReduction_61
 happyReduction_61 (HappyAbsSyn39  happy_var_1)
-	 =  HappyAbsSyn15
+	 =  HappyAbsSyn24
 		 (fmap StrCons happy_var_1
 	)
 happyReduction_61 _  = notHappyAtAll 
@@ -3193,7 +3197,7 @@ happyReduction_84 (HappyAbsSyn25  happy_var_3)
 	_
 	(HappyAbsSyn25  happy_var_1)
 	 =  HappyAbsSyn25
-		 (peOr happy_var_1 happy_var_3
+		 (peBOr happy_var_1 happy_var_3
 	)
 happyReduction_84 _ _ _  = notHappyAtAll 
 
@@ -3202,7 +3206,7 @@ happyReduction_85 (HappyAbsSyn25  happy_var_3)
 	_
 	(HappyAbsSyn25  happy_var_1)
 	 =  HappyAbsSyn25
-		 (peXor happy_var_1 happy_var_3
+		 (peBXor happy_var_1 happy_var_3
 	)
 happyReduction_85 _ _ _  = notHappyAtAll 
 
@@ -3218,7 +3222,7 @@ happyReduction_87 (HappyAbsSyn25  happy_var_3)
 	_
 	(HappyAbsSyn25  happy_var_1)
 	 =  HappyAbsSyn25
-		 (peAnd happy_var_1 happy_var_3
+		 (peBAnd happy_var_1 happy_var_3
 	)
 happyReduction_87 _ _ _  = notHappyAtAll 
 
@@ -3233,7 +3237,7 @@ happyReduce_89 = happySpecReduce_2  32 happyReduction_89
 happyReduction_89 (HappyAbsSyn25  happy_var_2)
 	_
 	 =  HappyAbsSyn25
-		 (peNot happy_var_2
+		 (peBNot happy_var_2
 	)
 happyReduction_89 _ _  = notHappyAtAll 
 
@@ -3265,7 +3269,7 @@ happyReduction_93 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_1)) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn25
-		 (fmap getBool $ peFunApply (peVar happy_var_1) happy_var_3
+		 (fmap getBool $ peFunApply (Var happy_var_1) happy_var_3
 	) `HappyStk` happyRest
 
 happyReduce_94 = happySpecReduce_3  33 happyReduction_94
@@ -3273,7 +3277,7 @@ happyReduction_94 _
 	_
 	(HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn25
-		 (fmap getBool $ peFunApply (peVar happy_var_1) []
+		 (fmap getBool $ peFunApply (Var happy_var_1) []
 	)
 happyReduction_94 _ _ _  = notHappyAtAll 
 
@@ -3368,7 +3372,7 @@ happyReduction_105 (HappyAbsSyn34  happy_var_3)
 	_
 	(HappyAbsSyn34  happy_var_1)
 	 =  HappyAbsSyn34
-		 (peDiv happy_var_1 happy_var_3
+		 (peDiv (fmap getInt happy_var_1) (fmap getInt happy_var_3)
 	)
 happyReduction_105 _ _ _  = notHappyAtAll 
 
@@ -3377,7 +3381,7 @@ happyReduction_106 (HappyAbsSyn34  happy_var_3)
 	_
 	(HappyAbsSyn34  happy_var_1)
 	 =  HappyAbsSyn34
-		 (peMod happy_var_1 happy_var_3
+		 (peMod (fmap getInt happy_var_1) (fmap getInt happy_var_3)
 	)
 happyReduction_106 _ _ _  = notHappyAtAll 
 
@@ -3456,7 +3460,7 @@ happyReduction_116 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_1)) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn34
-		 (fmap getNum $ peFunApply (peVar happy_var_1) happy_var_3
+		 (fmap getNum $ peFunApply (Var happy_var_1) happy_var_3
 	) `HappyStk` happyRest
 
 happyReduce_117 = happySpecReduce_3  38 happyReduction_117
@@ -3464,7 +3468,7 @@ happyReduction_117 _
 	_
 	(HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn34
-		 (fmap getNum $ peFunApply (peVar happy_var_1) []
+		 (fmap getNum $ peFunApply (Var happy_var_1) []
 	)
 happyReduction_117 _ _ _  = notHappyAtAll 
 
@@ -3489,7 +3493,7 @@ happyReduction_120 (HappyAbsSyn39  happy_var_3)
 	_
 	(HappyAbsSyn39  happy_var_1)
 	 =  HappyAbsSyn39
-		 (peSum happy_var_1 happy_var_3
+		 (peStrSum happy_var_1 happy_var_3
 	)
 happyReduction_120 _ _ _  = notHappyAtAll 
 
@@ -3521,7 +3525,7 @@ happyReduction_124 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_1)) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn39
-		 (fmap getStr $ peFunApply (peVar happy_var_1) happy_var_3
+		 (fmap getStr $ peFunApply (Var happy_var_1) happy_var_3
 	) `HappyStk` happyRest
 
 happyReduce_125 = happySpecReduce_3  41 happyReduction_125
@@ -3529,7 +3533,7 @@ happyReduction_125 _
 	_
 	(HappyTerminal (TVariable happy_var_1))
 	 =  HappyAbsSyn39
-		 (fmap getStr $ peFunApply (peVar happy_var_1) []
+		 (fmap getStr $ peFunApply (Var happy_var_1) []
 	)
 happyReduction_125 _ _ _  = notHappyAtAll 
 
@@ -3545,14 +3549,14 @@ happyReduction_126 _ _ _  = notHappyAtAll
 happyReduce_127 = happySpecReduce_3  42 happyReduction_127
 happyReduction_127 (HappyAbsSyn42  happy_var_3)
 	_
-	(HappyAbsSyn15  happy_var_1)
+	(HappyAbsSyn24  happy_var_1)
 	 =  HappyAbsSyn42
 		 (happy_var_1 : happy_var_3
 	)
 happyReduction_127 _ _ _  = notHappyAtAll 
 
 happyReduce_128 = happySpecReduce_1  42 happyReduction_128
-happyReduction_128 (HappyAbsSyn15  happy_var_1)
+happyReduction_128 (HappyAbsSyn24  happy_var_1)
 	 =  HappyAbsSyn42
 		 ([happy_var_1]
 	)
@@ -3642,7 +3646,7 @@ parseProgram tks = happyRunIdentity happySomeParser where
 happySeq = happyDontSeq
 
 
-newtype Operator = Operator (forall expr. PascalExpr expr => expr Variable)
+newtype Operator = Operator (forall expr. PascalExpr expr => expr ())
 
 data Prgm =
   Program [Prgm] [Prgm] [Operator]
@@ -3657,7 +3661,7 @@ data Prgm =
 data Number =
   IntCons { getInt :: Integer }
   | FloatCons { getFloat :: Float }
-  deriving Show
+  deriving (Show, Eq, Ord, Num, Bits, Fractional)
 
 data Variable =
   StrCons { getStr :: String }
@@ -3666,32 +3670,37 @@ data Variable =
   deriving Show
 
 class Functor expr => PascalExpr expr where
-  peAssign    :: expr t -> expr t -> expr Variable
-  peRead      :: expr Variable -> expr Variable
-  peReadln    :: expr Variable -> expr Variable
-  peWrite     :: expr Variable -> expr Variable
-  peWriteln   :: expr Variable -> expr Variable
-  peWhile     :: expr Bool -> [Operator] -> expr Variable
-  peIf        :: expr Bool -> [Operator] -> [Operator] -> expr Variable
-  peProcApply :: expr Variable -> [expr Variable] -> Bool -> expr Variable
-  peFunApply  :: expr Variable -> [expr Variable] -> expr Variable
-  peLT        :: expr t -> expr t -> expr Bool
-  peGT        :: expr t -> expr t -> expr Bool
-  peLTE       :: expr t -> expr t -> expr Bool
-  peGTE       :: expr t -> expr t -> expr Bool
-  peEq        :: expr t -> expr t -> expr Bool
-  peNotEq     :: expr t -> expr t -> expr Bool
-  peSum       :: expr t -> expr t -> expr t
-  peSub       :: expr t -> expr t -> expr t
-  peOr        :: expr t -> expr t -> expr t
-  peXor       :: expr t -> expr t -> expr t
-  peMul       :: expr t -> expr t -> expr t
-  peDivide    :: expr t -> expr t -> expr t
-  peDiv       :: expr t -> expr t -> expr t
-  peMod       :: expr t -> expr t -> expr t
-  peAnd       :: expr t -> expr t -> expr t
-  peNot       :: expr t -> expr t
-  peNeg       :: expr t -> expr t
+  peAssign    :: Prgm -> expr Variable -> expr ()
+  peRead      :: expr Variable -> expr ()
+  peReadln    :: expr Variable -> expr ()
+  peWrite     :: expr Variable -> expr ()
+  peWriteln   :: expr Variable -> expr ()
+  peWhile     :: expr Bool -> [Operator] -> expr ()
+  peIf        :: expr Bool -> [Operator] -> [Operator] -> expr ()
+  peProcApply :: Prgm -> [expr Variable] -> Bool -> expr ()
+  peFunApply  :: Prgm -> [expr Variable] -> expr Variable
+  peLT        :: Ord t => expr t -> expr t -> expr Bool
+  peGT        :: Ord t => expr t -> expr t -> expr Bool
+  peLTE       :: Ord t => expr t -> expr t -> expr Bool
+  peGTE       :: Ord t => expr t -> expr t -> expr Bool
+  peEq        :: Ord t => expr t -> expr t -> expr Bool
+  peNotEq     :: Ord t => expr t -> expr t -> expr Bool
+  peStrSum    :: expr String -> expr String -> expr String
+  peSum       :: Num t => expr t -> expr t -> expr t
+  peSub       :: Num t => expr t -> expr t -> expr t
+  peBOr       :: expr Bool -> expr Bool -> expr Bool
+  peOr        :: expr Number -> expr Number -> expr Number
+  peBXor      :: expr Bool -> expr Bool -> expr Bool
+  peXor       :: expr Number -> expr Number -> expr Number
+  peMul       :: Num t => expr t -> expr t -> expr t
+  peDivide    :: Fractional t => expr t -> expr t -> expr t
+  peDiv       :: expr Integer -> expr Integer -> expr Number
+  peMod       :: expr Integer -> expr Integer -> expr Number
+  peBAnd      :: expr Bool -> expr Bool -> expr Bool
+  peAnd       :: expr Number -> expr Number -> expr Number
+  peBNot      :: expr Bool -> expr Bool
+  peNot       :: expr Number -> expr Number
+  peNeg       :: Num t => expr t -> expr t
   pePos       :: expr t -> expr t
   peVar       :: String -> expr Variable
   peReal      :: Float -> expr Number

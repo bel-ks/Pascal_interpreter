@@ -2,8 +2,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Syntax where
+
+import Data.Bits
 import Lexer
 }
 
@@ -124,7 +127,7 @@ Operators:
   Operator ";" Operators                                    { (Operator $1) : $3 }
   | Operator ";"                                            { [Operator $1] }
 
-Operator :: { forall expr. PascalExpr expr => expr Variable }
+Operator :: { forall expr. PascalExpr expr => expr () }
 Operator:
   Assign                                                    { $1 }
   | ReadOps                                                 { $1 }
@@ -133,28 +136,28 @@ Operator:
   | IfOp                                                    { $1 }
   | FunApply                                                { $1 }
 
-Assign :: { forall expr. PascalExpr expr => expr Variable }
+Assign :: { forall expr. PascalExpr expr => expr () }
 Assign:
-  variable ":=" Expr                                        { peAssign (peVar $1) $3 }
+  variable ":=" Expr                                        { peAssign (Var $1) $3 }
 
-ReadOps :: { forall expr. PascalExpr expr => expr Variable }
+ReadOps :: { forall expr. PascalExpr expr => expr () }
 ReadOps:
   "read" "(" Expr ")"                                       { peRead $3 }
   | "readln" "(" Expr ")"                                   { peReadln $3 }
 
-WriteOps :: { forall expr. PascalExpr expr => expr Variable }
+WriteOps :: { forall expr. PascalExpr expr => expr () }
 WriteOps:
   "write" "(" Expr ")"                                      { peWrite $3 }
   | "writeln" "(" Expr ")"                                  { peWriteln $3 }
 
-WhileCycle :: { forall expr. PascalExpr expr => expr Variable }
+WhileCycle :: { forall expr. PascalExpr expr => expr () }
 WhileCycle:
   "while" ExprOrd "do" "begin" Operators "end"              { peWhile $2 $5 }
   | "while" ExprOrd "do" Operator                           { peWhile $2 [Operator $4] }
   | "while" BoolExpr "do" "begin" Operators "end"           { peWhile $2 $5 }
   | "while" BoolExpr "do" Operator                          { peWhile $2 [Operator $4] }
 
-IfOp :: { forall expr. PascalExpr expr => expr Variable }
+IfOp :: { forall expr. PascalExpr expr => expr () }
 IfOp:
   "if" ExprOrd ThenPart ElsePart                            { peIf $2 $3 $4 }
   | "if" ExprOrd ThenPart                                   { peIf $2 $3 [] }
@@ -171,11 +174,11 @@ ElsePart:
   "else" "begin" Operators "end"                            { $3 }
   | "else" Operator                                         { [Operator $2] }
 
-FunApply :: { forall expr. PascalExpr expr => expr Variable }
+FunApply :: { forall expr. PascalExpr expr => expr () }
 FunApply:
-  variable "(" PassedArgs ")"                               { peProcApply (peVar $1) $3 False }
-  | variable "(" ")"                                        { peProcApply (peVar $1) [] False }
-  | variable                                                { peProcApply (peVar $1) [] True }
+  variable "(" PassedArgs ")"                               { peProcApply (Var $1) $3 False }
+  | variable "(" ")"                                        { peProcApply (Var $1) [] False }
+  | variable                                                { peProcApply (Var $1) [] True }
 
 Expr :: { forall expr. PascalExpr expr => expr Variable }
 Expr:
@@ -223,26 +226,26 @@ BoolExpr:
 
 BoolOrXor :: { forall expr. PascalExpr expr => expr Bool }
 BoolOrXor:
-  BoolOrXor "or" BoolAnd                                    { peOr $1 $3 }
-  | BoolOrXor "xor" BoolAnd                                 { peXor $1 $3 }
+  BoolOrXor "or" BoolAnd                                    { peBOr $1 $3 }
+  | BoolOrXor "xor" BoolAnd                                 { peBXor $1 $3 }
   | BoolAnd                                                 { $1 }
 
 BoolAnd :: { forall expr. PascalExpr expr => expr Bool }
 BoolAnd:
-  BoolAnd "and" BoolUnary                                   { peAnd $1 $3 }
+  BoolAnd "and" BoolUnary                                   { peBAnd $1 $3 }
   | BoolUnary                                               { $1 }
 
 BoolUnary :: { forall expr. PascalExpr expr => expr Bool }
 BoolUnary:
-  "not" BoolUnary                                           { peNot $2 }
+  "not" BoolUnary                                           { peBNot $2 }
   | BoolAtom                                                { $1 }
 
 BoolAtom :: { forall expr. PascalExpr expr => expr Bool }
 BoolAtom:
   bool                                                      { peBool $1 }
   | variable                                                { fmap getBool $ peVar $1 }
-  | variable "(" PassedArgs ")"                             { fmap getBool $ peFunApply (peVar $1) $3 }
-  | variable "(" ")"                                        { fmap getBool $ peFunApply (peVar $1) [] }
+  | variable "(" PassedArgs ")"                             { fmap getBool $ peFunApply (Var $1) $3 }
+  | variable "(" ")"                                        { fmap getBool $ peFunApply (Var $1) [] }
   | "(" ExprOrd ")"                                         { peBr $2 }
   | "(" BoolExpr ")"                                        { peBr $2 }
 
@@ -262,8 +265,8 @@ NumMulDivAnd :: { forall expr. PascalExpr expr => expr Number }
 NumMulDivAnd:
   NumMulDivAnd "*" NumUnary                                 { peMul $1 $3 }
   | NumMulDivAnd "/" NumUnary                               { peDivide $1 $3 }
-  | NumMulDivAnd "div" NumUnary                             { peDiv $1 $3 }
-  | NumMulDivAnd "mod" NumUnary                             { peMod $1 $3 }
+  | NumMulDivAnd "div" NumUnary                             { peDiv (fmap getInt $1) (fmap getInt $3) }
+  | NumMulDivAnd "mod" NumUnary                             { peMod (fmap getInt $1) (fmap getInt $3) }
   | NumMulDivAnd "and" NumUnary                             { peAnd $1 $3 }
   | NumUnary                                                { $1 }
 
@@ -279,8 +282,8 @@ NumAtom:
   real                                                      { peReal $1 }
   | int                                                     { peInt $1 }
   | variable                                                { fmap getNum $ peVar $1 }
-  | variable "(" PassedArgs ")"                             { fmap getNum $ peFunApply (peVar $1) $3 }
-  | variable "(" ")"                                        { fmap getNum $ peFunApply (peVar $1) [] }
+  | variable "(" PassedArgs ")"                             { fmap getNum $ peFunApply (Var $1) $3 }
+  | variable "(" ")"                                        { fmap getNum $ peFunApply (Var $1) [] }
   | "(" NumExpr ")"                                         { peBr $2 }
 
 StrExpr :: { forall expr. PascalExpr expr => expr String }
@@ -289,15 +292,15 @@ StrExpr:
 
 StrSum :: { forall expr. PascalExpr expr => expr String }
 StrSum:
-  StrSum "+" StrAtom                                        { peSum $1 $3 }
+  StrSum "+" StrAtom                                        { peStrSum $1 $3 }
   | StrAtom                                                 { $1 }
 
 StrAtom :: { forall expr. PascalExpr expr => expr String }
 StrAtom:
   qstring                                                   { peStr $1 }
   | variable                                                { fmap getStr $ peVar $1 }
-  | variable "(" PassedArgs ")"                             { fmap getStr $ peFunApply (peVar $1) $3 }
-  | variable "(" ")"                                        { fmap getStr $ peFunApply (peVar $1) [] }
+  | variable "(" PassedArgs ")"                             { fmap getStr $ peFunApply (Var $1) $3 }
+  | variable "(" ")"                                        { fmap getStr $ peFunApply (Var $1) [] }
   | "(" StrExpr ")"                                         { peBr $2 }
 
 PassedArgs :: { forall expr. PascalExpr expr => [expr Variable] }
@@ -306,7 +309,7 @@ PassedArgs:
   | Expr                                                    { [$1] }
 
 {
-newtype Operator = Operator (forall expr. PascalExpr expr => expr Variable)
+newtype Operator = Operator (forall expr. PascalExpr expr => expr ())
 
 data Prgm =
   Program [Prgm] [Prgm] [Operator]
@@ -321,7 +324,7 @@ data Prgm =
 data Number =
   IntCons { getInt :: Integer }
   | FloatCons { getFloat :: Float }
-  deriving Show
+  deriving (Show, Eq, Ord, Num, Bits, Fractional)
 
 data Variable =
   StrCons { getStr :: String }
@@ -330,32 +333,37 @@ data Variable =
   deriving Show
 
 class Functor expr => PascalExpr expr where
-  peAssign    :: expr t -> expr t -> expr Variable
-  peRead      :: expr Variable -> expr Variable
-  peReadln    :: expr Variable -> expr Variable
-  peWrite     :: expr Variable -> expr Variable
-  peWriteln   :: expr Variable -> expr Variable
-  peWhile     :: expr Bool -> [Operator] -> expr Variable
-  peIf        :: expr Bool -> [Operator] -> [Operator] -> expr Variable
-  peProcApply :: expr Variable -> [expr Variable] -> Bool -> expr Variable
-  peFunApply  :: expr Variable -> [expr Variable] -> expr Variable
-  peLT        :: expr t -> expr t -> expr Bool
-  peGT        :: expr t -> expr t -> expr Bool
-  peLTE       :: expr t -> expr t -> expr Bool
-  peGTE       :: expr t -> expr t -> expr Bool
-  peEq        :: expr t -> expr t -> expr Bool
-  peNotEq     :: expr t -> expr t -> expr Bool
-  peSum       :: expr t -> expr t -> expr t
-  peSub       :: expr t -> expr t -> expr t
-  peOr        :: expr t -> expr t -> expr t
-  peXor       :: expr t -> expr t -> expr t
-  peMul       :: expr t -> expr t -> expr t
-  peDivide    :: expr t -> expr t -> expr t
-  peDiv       :: expr t -> expr t -> expr t
-  peMod       :: expr t -> expr t -> expr t
-  peAnd       :: expr t -> expr t -> expr t
-  peNot       :: expr t -> expr t
-  peNeg       :: expr t -> expr t
+  peAssign    :: Prgm -> expr Variable -> expr ()
+  peRead      :: expr Variable -> expr ()
+  peReadln    :: expr Variable -> expr ()
+  peWrite     :: expr Variable -> expr ()
+  peWriteln   :: expr Variable -> expr ()
+  peWhile     :: expr Bool -> [Operator] -> expr ()
+  peIf        :: expr Bool -> [Operator] -> [Operator] -> expr ()
+  peProcApply :: Prgm -> [expr Variable] -> Bool -> expr ()
+  peFunApply  :: Prgm -> [expr Variable] -> expr Variable
+  peLT        :: Ord t => expr t -> expr t -> expr Bool
+  peGT        :: Ord t => expr t -> expr t -> expr Bool
+  peLTE       :: Ord t => expr t -> expr t -> expr Bool
+  peGTE       :: Ord t => expr t -> expr t -> expr Bool
+  peEq        :: Ord t => expr t -> expr t -> expr Bool
+  peNotEq     :: Ord t => expr t -> expr t -> expr Bool
+  peStrSum    :: expr String -> expr String -> expr String
+  peSum       :: Num t => expr t -> expr t -> expr t
+  peSub       :: Num t => expr t -> expr t -> expr t
+  peBOr       :: expr Bool -> expr Bool -> expr Bool
+  peOr        :: expr Number -> expr Number -> expr Number
+  peBXor      :: expr Bool -> expr Bool -> expr Bool
+  peXor       :: expr Number -> expr Number -> expr Number
+  peMul       :: Num t => expr t -> expr t -> expr t
+  peDivide    :: Fractional t => expr t -> expr t -> expr t
+  peDiv       :: expr Integer -> expr Integer -> expr Number
+  peMod       :: expr Integer -> expr Integer -> expr Number
+  peBAnd      :: expr Bool -> expr Bool -> expr Bool
+  peAnd       :: expr Number -> expr Number -> expr Number
+  peBNot      :: expr Bool -> expr Bool
+  peNot       :: expr Number -> expr Number
+  peNeg       :: Num t => expr t -> expr t
   pePos       :: expr t -> expr t
   peVar       :: String -> expr Variable
   peReal      :: Float -> expr Number

@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Main where
 
@@ -8,6 +10,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.State
 import Control.Lens
+import Data.Bits
 import qualified Data.Map as Map
 import Lexer
 import PrettyPrinter
@@ -43,6 +46,19 @@ data InEnv = InEnv
 
 makeLenses ''InEnv
 
+dummyEnv :: InEnv
+dummyEnv = InEnv
+  { _varTypes = Map.empty
+  , _varBVals = Map.empty
+  , _varSVals = Map.empty
+  , _varIVals = Map.empty
+  , _varFVals = Map.empty
+  , _funs     = Map.empty
+  , _funOps   = Map.empty
+  , _procs    = Map.empty
+  , _procOps  = Map.empty
+  }
+
 data AlreadyUsedVarException =
   AlreadyUsedVarException Var Type
 
@@ -73,11 +89,34 @@ instance Show AlreadyUsedProcedureNameException where
     "AlreadyUsedProcedureNameException: Procedure name \"" ++ n
     ++ "\" is already used."
 
-newtype Interpret a = Interpret {interpret :: a}
+data NoSuchVarException =
+  NoSuchVarException Var
+
+instance Exception NoSuchVarException
+
+instance Show NoSuchVarException where
+  show (NoSuchVarException v) =
+    "NoSuchVarException: There is no variable \"" ++ v
+    ++ "\" in program."
+
+newtype Interpret a = Interpret {opsInterpret :: a}
   deriving Functor
 
-instance PascalExpr Interpret where
-  peAssign v e = undefined
+instance PascalExpr (StateT InEnv IO) where
+  peAssign (Var v) expr = do
+    env <- get
+    e <- expr
+    let t = Map.lookup v (view varTypes env)
+    case t of
+      (Just "boolean") ->
+        modify (\env -> over varBVals (Map.insert v $ getBool e) env)
+      (Just "string")  ->
+        modify (\env -> over varSVals (Map.insert v $ getStr e) env)
+      (Just "integer") ->
+        modify (\env -> over varIVals (Map.insert v $ getInt $ getNum e) env)
+      (Just "float")   ->
+        modify (\env -> over varFVals (Map.insert v $ getFloat $ getNum e) env)
+      Nothing          -> lift $ throwIO $ NoSuchVarException v
   peRead e = undefined
   peReadln e = undefined
   peWrite e = undefined
@@ -86,30 +125,47 @@ instance PascalExpr Interpret where
   peIf c t e = undefined
   peProcApply f vs isPr = undefined
   peFunApply f vs = undefined
-  peLT a b = undefined
-  peGT a b = undefined
-  peLTE a b = undefined
-  peGTE a b = undefined
-  peEq a b = undefined
-  peNotEq a b = undefined
-  peSum a b = undefined
-  peSub a b = undefined
-  peOr a b = undefined
-  peXor a b = undefined
-  peMul a b = undefined
-  peDivide a b = undefined
-  peDiv a b = undefined
-  peMod a b = undefined
-  peAnd a b = undefined
-  peNot e = undefined
-  peNeg e = undefined
-  pePos e = undefined
-  peVar = Interpret . StrCons
-  peReal = Interpret . FloatCons
-  peInt = Interpret . IntCons
-  peStr = Interpret
-  peBool = Interpret
-  peBr e = undefined
+  peLT a b = (fmap (<) a) <*> b
+  peGT a b = (fmap (>) a) <*> b
+  peLTE a b = (fmap (<=) a) <*> b
+  peGTE a b = (fmap (>=) a) <*> b
+  peEq a b = (fmap (==) a) <*> b
+  peNotEq a b = (fmap (/=) a) <*> b
+  peStrSum a b = (fmap (++) a) <*> b
+  peSum a b = (fmap (+) a) <*> b
+  peSub a b = (fmap (-) a) <*> b
+  peBOr a b = (fmap (||) a) <*> b
+  peOr a b = (fmap (.|.) a) <*> b
+  peBXor a b = undefined
+  peXor a b = (fmap (xor) a) <*> b
+  peMul a b = (fmap (*) a) <*> b
+  peDivide a b = (fmap (/) a) <*> b
+  peDiv a b = fmap IntCons $ (fmap (div) a) <*> b
+  peMod a b = fmap IntCons $ (fmap (mod) a) <*> b
+  peBAnd a b = (fmap (&&) a) <*> b
+  peAnd a b = (fmap (.&.) a) <*> b
+  peBNot e = fmap not e
+  peNot e = fmap complement e
+  peNeg e = fmap negate e
+  pePos = id
+  peVar v = do
+    env <- get
+    let t = Map.lookup v (view varTypes env)
+    lift $ case t of
+             (Just "boolean") ->
+               return $ BoolCons $ (view varBVals env) Map.! v
+             (Just "string")  ->
+               return $ StrCons $ (view varSVals env) Map.! v
+             (Just "integer") ->
+               return $ NumCons $ IntCons $ (view varIVals env) Map.! v
+             (Just "float")   ->
+               return $ NumCons $ FloatCons $ (view varFVals env) Map.! v
+             Nothing  -> throwIO $ NoSuchVarException v
+  peReal r = lift $ return $ FloatCons r
+  peInt i = lift $ return $ IntCons i
+  peStr s = lift $ return s
+  peBool b = lift $ return b
+  peBr = id
 
 checkVariables :: [Prgm] -> Prgm -> StateT InEnv IO()
 checkVariables vs (Type t) = do
@@ -160,10 +216,14 @@ prgmInterpret :: Prgm -> StateT InEnv IO()
 prgmInterpret (Program vb fb ob) = do
   forM_ vb (\(VarBlock vl) -> collectVariables vl)
   collectFunsAndProcs fb
+  lift $ putStrLn "Process finished."
+
+interpret :: Prgm -> IO()
+interpret p = evalStateT (prgmInterpret p) dummyEnv
 
 main :: IO()
 main = do
   inh <- openFile "in.txt" ReadMode
   input <- hGetContents inh
   let parseResult = parseProgram (alexScanTokens input)
-  putStrLn ""
+  interpret parseResult

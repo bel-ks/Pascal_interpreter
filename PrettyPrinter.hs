@@ -23,11 +23,11 @@ castST :: OpToString a -> OpToString b
 castST (OpToString s) = OpToString s
 
 instance PascalExpr OpToString where
-  peAssign v e = castST v <> OpToString " := " <> castST e
-  peRead e = OpToString "read(" <> e <> OpToString ")"
-  peReadln e = OpToString "readln(" <> e <> OpToString ")"
-  peWrite e = OpToString "write(" <> e <> OpToString ")"
-  peWriteln e = OpToString "writeln(" <> e <> OpToString ")"
+  peAssign (Var v) e = OpToString v <> OpToString " := " <> castST e
+  peRead e = OpToString "read(" <> castST e <> OpToString ")"
+  peReadln e = OpToString "readln(" <> castST e <> OpToString ")"
+  peWrite e = OpToString "write(" <> castST e <> OpToString ")"
+  peWriteln e = OpToString "writeln(" <> castST e <> OpToString ")"
   peWhile c ops = OpToString "while " <> castST c <> OpToString " do\n"
                   <> (if (length ops > 1)
                         then OpToString "  begin\n"
@@ -48,12 +48,12 @@ instance PascalExpr OpToString where
                                      <> (OpToString (evalState (prettyPrintOperators e) (2, "")))
                                      <> OpToString ";\n  end"
                                 else OpToString (evalState (prettyPrintOperators e) (2, ""))))
-  peProcApply f vs isPr
-    | isPr && (null vs) = f
-    | otherwise = f <> OpToString "("
-                    <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
-                    <> (last vs) <> OpToString ")"
-  peFunApply f vs = f <> OpToString "("
+  peProcApply (Var f) vs isPr
+    | isPr && (null vs) = OpToString f
+    | otherwise = OpToString f <> OpToString "("
+                    <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST vs)))
+                    <> castST (last vs) <> OpToString ")"
+  peFunApply (Var f) vs = OpToString f <> OpToString "("
                     <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
                     <> (last vs) <> OpToString ")"
   peLT a b = castST a <> OpToString " < " <> castST b
@@ -62,15 +62,20 @@ instance PascalExpr OpToString where
   peGTE a b = castST a <> OpToString " >= " <> castST b
   peEq a b = castST a <> OpToString " = " <> castST b
   peNotEq a b = castST a <> OpToString " <> " <> castST b
+  peStrSum a b = a <> OpToString " + " <> b
   peSum a b = a <> OpToString " + " <> b
   peSub a b = a <> OpToString " - " <> b
+  peBOr a b = a <> OpToString " or " <> b
   peOr a b = a <> OpToString " or " <> b
+  peBXor a b = a <> OpToString " xor " <> b
   peXor a b = a <> OpToString " xor " <> b
   peMul a b = a <> OpToString " * " <> b
   peDivide a b = a <> OpToString " / " <> b
-  peDiv a b = a <> OpToString " div " <> b
-  peMod a b = a <> OpToString " mod " <> b
+  peDiv a b = castST a <> OpToString " div " <> castST b
+  peMod a b = castST a <> OpToString " mod " <> castST b
+  peBAnd a b = a <> OpToString " and " <> b
   peAnd a b = a <> OpToString " and " <> b
+  peBNot e = OpToString "not " <> e
   peNot e = OpToString "not " <> e
   peNeg e = OpToString "-" <> e
   pePos e = OpToString "+" <> e

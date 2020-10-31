@@ -18,7 +18,6 @@ data HappyAbsSyn
 	| HappyAbsSyn4 (Prgm)
 	| HappyAbsSyn5 ([Prgm])
 	| HappyAbsSyn7 (([Prgm], Prgm))
-	| HappyAbsSyn11 (((Prgm, Prgm), [Prgm]))
 	| HappyAbsSyn14 ([Operator])
 	| HappyAbsSyn15 (forall expr. PascalExpr expr => expr Variable)
 	| HappyAbsSyn25 (forall expr. PascalExpr expr => expr Bool)
@@ -2609,7 +2608,7 @@ happyReduction_19 (_ `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn5  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	(HappyAbsSyn11  happy_var_1) `HappyStk`
+	(HappyAbsSyn4  happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn4
 		 (Function happy_var_1 happy_var_3 happy_var_5
@@ -2621,7 +2620,7 @@ happyReduction_20 (_ `HappyStk`
 	(HappyAbsSyn14  happy_var_4) `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
-	(HappyAbsSyn11  happy_var_1) `HappyStk`
+	(HappyAbsSyn4  happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn4
 		 (Function happy_var_1 [] happy_var_4
@@ -2633,7 +2632,7 @@ happyReduction_21 (_ `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn5  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	(HappyAbsSyn11  happy_var_1) `HappyStk`
+	(HappyAbsSyn4  happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn4
 		 (Function happy_var_1 happy_var_3 []
@@ -2644,7 +2643,7 @@ happyReduction_22 (_ `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
 	_ `HappyStk`
-	(HappyAbsSyn11  happy_var_1) `HappyStk`
+	(HappyAbsSyn4  happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn4
 		 (Function happy_var_1 [] []
@@ -2659,8 +2658,8 @@ happyReduction_23 ((HappyTerminal (TType happy_var_7)) `HappyStk`
 	(HappyTerminal (TVariable happy_var_2)) `HappyStk`
 	_ `HappyStk`
 	happyRest)
-	 = HappyAbsSyn11
-		 (((Var happy_var_2, Type happy_var_7), happy_var_4)
+	 = HappyAbsSyn4
+		 (FunDef (Var happy_var_2, Type happy_var_7) happy_var_4
 	) `HappyStk` happyRest
 
 happyReduce_24 = happyReduce 6 11 happyReduction_24
@@ -2671,8 +2670,8 @@ happyReduction_24 ((HappyTerminal (TType happy_var_6)) `HappyStk`
 	(HappyTerminal (TVariable happy_var_2)) `HappyStk`
 	_ `HappyStk`
 	happyRest)
-	 = HappyAbsSyn11
-		 (((Var happy_var_2, Type happy_var_6), [])
+	 = HappyAbsSyn4
+		 (FunDef (Var happy_var_2, Type happy_var_6) []
 	) `HappyStk` happyRest
 
 happyReduce_25 = happyReduce 5 11 happyReduction_25
@@ -2682,15 +2681,15 @@ happyReduction_25 (_ `HappyStk`
 	(HappyTerminal (TVariable happy_var_2)) `HappyStk`
 	_ `HappyStk`
 	happyRest)
-	 = HappyAbsSyn11
-		 (((Var happy_var_2, Type ""), happy_var_4)
+	 = HappyAbsSyn4
+		 (FunDef (Var happy_var_2, Type "") happy_var_4
 	) `HappyStk` happyRest
 
 happyReduce_26 = happySpecReduce_2  11 happyReduction_26
 happyReduction_26 (HappyTerminal (TVariable happy_var_2))
 	_
-	 =  HappyAbsSyn11
-		 (((Var happy_var_2, Type ""), [])
+	 =  HappyAbsSyn4
+		 (FunDef (Var happy_var_2, Type "") []
 	)
 happyReduction_26 _ _  = notHappyAtAll 
 
@@ -3649,7 +3648,8 @@ data Prgm =
   Program [Prgm] [Prgm] [Operator]
   | VarBlock [Prgm]
   | VarLine ([Prgm], Prgm)
-  | Function ((Prgm, Prgm), [Prgm]) [Prgm] [Operator]
+  | Function Prgm [Prgm] [Operator]
+  | FunDef (Prgm, Prgm) [Prgm]
   | FunArg ([Prgm], Prgm)
   | Var String
   | Type String

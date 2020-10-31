@@ -16,14 +16,17 @@ import System.IO
 
 type Var = String
 type Type = String
+type Name = String
 type VarTypes = Map.Map Var Type
 type VarBoolValues = Map.Map Var Bool
 type VarStrValues = Map.Map Var String
 type VarIntValues = Map.Map Var Integer
 type VarFloatValues = Map.Map Var Float
-type Args = [(Var, Type)]
-type Funs = Map.Map Var (Type, Args)
-type Procs = Map.Map Var Args
+type Args = [Prgm]
+type Funs = Map.Map Name (Type, Args)
+type FunOps = Map.Map Name [Operator]
+type Procs = Map.Map Name Args
+type ProcOps = Map.Map Name [Operator]
 
 data InEnv = InEnv
   { _varTypes :: VarTypes
@@ -32,18 +35,43 @@ data InEnv = InEnv
   , _varIVals :: VarIntValues
   , _varFVals :: VarFloatValues
   , _funs     :: Funs
+  , _funOps   :: FunOps
   , _procs    :: Procs
+  , _procOps  :: ProcOps
   }
   deriving Show
 
 makeLenses ''InEnv
 
-data AlreadyUsedVarException = AlreadyUsedVarException String
+data AlreadyUsedVarException =
+  AlreadyUsedVarException Var Type
 
 instance Exception AlreadyUsedVarException
 
 instance Show AlreadyUsedVarException where
-  show (AlreadyUsedVarException e) = "AlreadyUsedVarException: " ++ e
+  show (AlreadyUsedVarException v t) =
+    "AlreadyUsedVarException: Variable \"" ++ v
+    ++ "\" is already used with type " ++ t ++ "."
+
+data AlreadyUsedFunctionNameException =
+  AlreadyUsedFunctionNameException Name
+
+instance Exception AlreadyUsedFunctionNameException
+
+instance Show AlreadyUsedFunctionNameException where
+  show (AlreadyUsedFunctionNameException n) =
+    "AlreadyUsedFunctionNameException: Function name \"" ++ n
+    ++ "\" is already used."
+
+data AlreadyUsedProcedureNameException =
+  AlreadyUsedProcedureNameException Name
+
+instance Exception AlreadyUsedProcedureNameException
+
+instance Show AlreadyUsedProcedureNameException where
+  show (AlreadyUsedProcedureNameException n) =
+    "AlreadyUsedProcedureNameException: Procedure name \"" ++ n
+    ++ "\" is already used."
 
 newtype Interpret a = Interpret {interpret :: a}
   deriving Functor
@@ -88,7 +116,7 @@ checkVariables vs (Type t) = do
   env <- get
   forM_ vs (\(Var v) ->
     if Map.member v (view varTypes env)
-      then lift $ throwIO $ AlreadyUsedVarException ("Variable " ++ v ++ " is already used with another or same type.")
+      then lift $ throwIO $ AlreadyUsedVarException v ((view varTypes env) Map.! v)
       else modify (\env -> over varTypes (Map.insert v t) env))
 
 collectVariables :: [Prgm] -> StateT InEnv IO()
@@ -99,14 +127,39 @@ collectVariables ((VarLine (vs, t)) : ps) = do
   checkVariables vs t
   collectVariables ps
 
+checkFunDef :: Prgm -> [Operator] -> StateT InEnv IO()
+checkFunDef (FunDef (Var n, Type t) ars) ops
+  | t == "" = do
+    env <- get
+    if (Map.member n (view procs env))
+        || (Map.member n (view funs env))
+        || (Map.member n (view varTypes env))
+      then lift $ throwIO $ AlreadyUsedProcedureNameException n
+      else do
+        modify (\env -> over procs (Map.insert n ars) env)
+        modify (\env -> over procOps (Map.insert n ops) env)
+  | otherwise = do
+    env <- get
+    if (Map.member n (view funs env))
+        || (Map.member n (view procs env))
+        || (Map.member n (view varTypes env))
+      then lift $ throwIO $ AlreadyUsedFunctionNameException n
+      else do
+        modify (\env -> over funs (Map.insert n (t, ars)) env)
+        modify (\env -> over funOps (Map.insert n ops) env)
+
 collectFunsAndProcs :: [Prgm] -> StateT InEnv IO()
 collectFunsAndProcs [] = return ()
-collectFunsAndProcs (fp : []) = undefined
-collectFunsAndProcs (fp : fps) = undefined
+collectFunsAndProcs ((Function def vb ops) : []) = do
+  checkFunDef def ops
+collectFunsAndProcs ((Function def vb ops) : fps) = do
+  checkFunDef def ops
+  collectFunsAndProcs fps
 
 prgmInterpret :: Prgm -> StateT InEnv IO()
 prgmInterpret (Program vb fb ob) = do
   forM_ vb (\(VarBlock vl) -> collectVariables vl)
+  collectFunsAndProcs fb
 
 main :: IO()
 main = do

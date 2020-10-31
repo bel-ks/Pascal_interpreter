@@ -103,12 +103,12 @@ Function:
   | DefFunction ";" DefVarBlocks "begin" "end" ";"          { Function $1 $3 [] }
   | DefFunction ";" "begin" "end" ";"                       { Function $1 [] [] }
 
-DefFunction :: { ((Prgm, Prgm), [Prgm]) }
+DefFunction :: { Prgm }
 DefFunction:
-  "function" variable "(" Arguments ")" ":" type            { ((Var $2, Type $7), $4) }
-  | "function" variable "(" ")" ":" type                    { ((Var $2, Type $6), []) }
-  | "procedure" variable "(" Arguments ")"                  { ((Var $2, Type ""), $4) }
-  | "procedure" variable                                    { ((Var $2, Type ""), []) }
+  "function" variable "(" Arguments ")" ":" type            { FunDef (Var $2, Type $7) $4 }
+  | "function" variable "(" ")" ":" type                    { FunDef (Var $2, Type $6) [] }
+  | "procedure" variable "(" Arguments ")"                  { FunDef (Var $2, Type "") $4 }
+  | "procedure" variable                                    { FunDef (Var $2, Type "") [] }
 
 Arguments :: { [Prgm] }
 Arguments:
@@ -312,7 +312,8 @@ data Prgm =
   Program [Prgm] [Prgm] [Operator]
   | VarBlock [Prgm]
   | VarLine ([Prgm], Prgm)
-  | Function ((Prgm, Prgm), [Prgm]) [Prgm] [Operator]
+  | Function Prgm [Prgm] [Operator]
+  | FunDef (Prgm, Prgm) [Prgm]
   | FunArg ([Prgm], Prgm)
   | Var String
   | Type String

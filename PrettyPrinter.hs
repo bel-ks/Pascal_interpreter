@@ -129,10 +129,23 @@ prettyPrintPrgm (Var v) = do
 prettyPrintPrgm (Type t) = do
   modify (\(tc, r) -> (tc, r ++ t))
   gets (\(_, r) -> r)
-prettyPrintPrgm (Function ((n, t), ars) vb ob) = do
+prettyPrintPrgm (Function def vb ob) = do
+  prettyPrintPrgm def
+  modify (\(tc, r) -> (tc, r ++ ";\n"))
+  prettyPrintList ";\n    " vb
+  if null vb
+    then return ()
+    else modify (\(tc, r) -> (tc, r ++ ";\n"))
+  modify (\(tc, r) -> (tc + 1, r ++ "begin\n"))
+  prettyPrintOperators ob
+  if null ob
+    then modify (\(tc, r) -> (tc - 1, r ++ "end;\n"))
+    else modify (\(tc, r) -> (tc - 1, r ++ ";\nend;\n"))
+  gets (\(_, r) -> r)
+prettyPrintPrgm (FunDef (n, t)  ars) = do
   let isProcedure = case t of
-                      (Type "") -> True
-                      _         -> False
+                    (Type "") -> True
+                    _         -> False
   let funType = if isProcedure
                   then "procedure "
                   else "function "
@@ -154,17 +167,6 @@ prettyPrintPrgm (Function ((n, t), ars) vb ob) = do
         else do
           modify (\(tc, r) -> (tc, r ++ "): "))
           prettyPrintPrgm t
-  modify (\(tc, r) -> (tc, r ++ ";\n"))
-  prettyPrintList ";\n    " vb
-  if null vb
-    then return ()
-    else modify (\(tc, r) -> (tc, r ++ ";\n"))
-  modify (\(tc, r) -> (tc + 1, r ++ "begin\n"))
-  prettyPrintOperators ob
-  if null ob
-    then modify (\(tc, r) -> (tc - 1, r ++ "end;\n"))
-    else modify (\(tc, r) -> (tc - 1, r ++ ";\nend;\n"))
-  gets (\(_, r) -> r)
 prettyPrintPrgm (FunArg (vs, t)) = do
   prettyPrintList comma vs
   modify (\(tc, r) -> (tc, r ++ ": "))
@@ -172,3 +174,9 @@ prettyPrintPrgm (FunArg (vs, t)) = do
 
 prettyPrint :: Prgm -> String
 prettyPrint p = evalState (prettyPrintPrgm p) (0, "")
+
+instance Show Operator where
+  show (Operator op) = toString op
+
+instance Show Prgm where
+  show = prettyPrint

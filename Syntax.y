@@ -147,8 +147,8 @@ ReadOps:
 
 WriteOps :: { forall expr. PascalExpr expr => expr () }
 WriteOps:
-  "write" "(" Expr ")"                                      { peWrite $3 }
-  | "writeln" "(" Expr ")"                                  { peWriteln $3 }
+  "write" "(" PassedArgs ")"                                { peWrite $3 }
+  | "writeln" "(" PassedArgs ")"                            { peWriteln $3 }
 
 WhileCycle :: { forall expr. PascalExpr expr => expr () }
 WhileCycle:
@@ -257,8 +257,8 @@ NumSumSubOrXor :: { forall expr. PascalExpr expr => expr Number }
 NumSumSubOrXor:
   NumSumSubOrXor "+" NumMulDivAnd                           { peSum $1 $3 }
   | NumSumSubOrXor "-" NumMulDivAnd                         { peSub $1 $3 }
-  | NumSumSubOrXor "or" NumMulDivAnd                        { peOr $1 $3 }
-  | NumSumSubOrXor "xor" NumMulDivAnd                       { peXor $1 $3 }
+  | NumSumSubOrXor "or" NumMulDivAnd                        { peOr (fmap getInt $1) (fmap getInt $3) }
+  | NumSumSubOrXor "xor" NumMulDivAnd                       { peXor (fmap getInt $1) (fmap getInt $3) }
   | NumMulDivAnd                                            { $1 }
 
 NumMulDivAnd :: { forall expr. PascalExpr expr => expr Number }
@@ -267,12 +267,12 @@ NumMulDivAnd:
   | NumMulDivAnd "/" NumUnary                               { peDivide $1 $3 }
   | NumMulDivAnd "div" NumUnary                             { peDiv (fmap getInt $1) (fmap getInt $3) }
   | NumMulDivAnd "mod" NumUnary                             { peMod (fmap getInt $1) (fmap getInt $3) }
-  | NumMulDivAnd "and" NumUnary                             { peAnd $1 $3 }
+  | NumMulDivAnd "and" NumUnary                             { peAnd (fmap getInt $1) (fmap getInt $3) }
   | NumUnary                                                { $1 }
 
 NumUnary :: { forall expr. PascalExpr expr => expr Number }
 NumUnary:
-  "not" NumUnary                                            { peNot $2 }
+  "not" NumUnary                                            { peNot (fmap getInt $2)}
   | "-" NumUnary                                            { peNeg $2 }
   | "+" NumUnary                                            { pePos $2 }
   | NumAtom                                                 { $1 }
@@ -336,8 +336,8 @@ class Functor expr => PascalExpr expr where
   peAssign    :: Prgm -> expr Variable -> expr ()
   peRead      :: expr Variable -> expr ()
   peReadln    :: expr Variable -> expr ()
-  peWrite     :: expr Variable -> expr ()
-  peWriteln   :: expr Variable -> expr ()
+  peWrite     :: [expr Variable] -> expr ()
+  peWriteln   :: [expr Variable] -> expr ()
   peWhile     :: expr Bool -> [Operator] -> expr ()
   peIf        :: expr Bool -> [Operator] -> [Operator] -> expr ()
   peProcApply :: Prgm -> [expr Variable] -> Bool -> expr ()
@@ -349,22 +349,22 @@ class Functor expr => PascalExpr expr where
   peEq        :: Ord t => expr t -> expr t -> expr Bool
   peNotEq     :: Ord t => expr t -> expr t -> expr Bool
   peStrSum    :: expr String -> expr String -> expr String
-  peSum       :: Num t => expr t -> expr t -> expr t
-  peSub       :: Num t => expr t -> expr t -> expr t
+  peSum       :: expr Number -> expr Number -> expr Number
+  peSub       :: expr Number -> expr Number -> expr Number
   peBOr       :: expr Bool -> expr Bool -> expr Bool
-  peOr        :: expr Number -> expr Number -> expr Number
+  peOr        :: expr Integer -> expr Integer -> expr Number
   peBXor      :: expr Bool -> expr Bool -> expr Bool
-  peXor       :: expr Number -> expr Number -> expr Number
-  peMul       :: Num t => expr t -> expr t -> expr t
-  peDivide    :: Fractional t => expr t -> expr t -> expr t
+  peXor       :: expr Integer -> expr Integer -> expr Number
+  peMul       :: expr Number -> expr Number -> expr Number
+  peDivide    :: expr Number -> expr Number -> expr Number
   peDiv       :: expr Integer -> expr Integer -> expr Number
   peMod       :: expr Integer -> expr Integer -> expr Number
   peBAnd      :: expr Bool -> expr Bool -> expr Bool
-  peAnd       :: expr Number -> expr Number -> expr Number
+  peAnd       :: expr Integer -> expr Integer -> expr Number
   peBNot      :: expr Bool -> expr Bool
-  peNot       :: expr Number -> expr Number
-  peNeg       :: Num t => expr t -> expr t
-  pePos       :: expr t -> expr t
+  peNot       :: expr Integer -> expr Number
+  peNeg       :: expr Number -> expr Number
+  pePos       :: expr Number -> expr Number
   peVar       :: String -> expr Variable
   peReal      :: Float -> expr Number
   peInt       :: Integer -> expr Number

@@ -18406,7 +18406,7 @@ data Token =
   TXor
   deriving (Eq, Show)
 
-alex_action_0 =  \str -> TStr str 
+alex_action_0 =  \str -> TStr $ tail $ init str 
 alex_action_1 =  \str -> TBool True 
 alex_action_2 =  \str -> TBool False 
 alex_action_3 =  \str -> TType str 

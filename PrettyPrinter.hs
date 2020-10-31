@@ -26,8 +26,10 @@ instance PascalExpr OpToString where
   peAssign (Var v) e = OpToString v <> OpToString " := " <> castST e
   peRead e = OpToString "read(" <> castST e <> OpToString ")"
   peReadln e = OpToString "readln(" <> castST e <> OpToString ")"
-  peWrite e = OpToString "write(" <> castST e <> OpToString ")"
-  peWriteln e = OpToString "writeln(" <> castST e <> OpToString ")"
+  peWrite es = OpToString "write(" <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST es)))
+               <> castST (last es) <> OpToString ")"
+  peWriteln es = OpToString "writeln(" <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST es)))
+                 <> castST (last es) <> OpToString ")"
   peWhile c ops = OpToString "while " <> castST c <> OpToString " do\n"
                   <> (if (length ops > 1)
                         then OpToString "  begin\n"
@@ -51,11 +53,11 @@ instance PascalExpr OpToString where
   peProcApply (Var f) vs isPr
     | isPr && (null vs) = OpToString f
     | otherwise = OpToString f <> OpToString "("
-                    <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST vs)))
-                    <> castST (last vs) <> OpToString ")"
+                  <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST vs)))
+                  <> castST (last vs) <> OpToString ")"
   peFunApply (Var f) vs = OpToString f <> OpToString "("
-                    <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
-                    <> (last vs) <> OpToString ")"
+                          <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
+                          <> (last vs) <> OpToString ")"
   peLT a b = castST a <> OpToString " < " <> castST b
   peGT a b = castST a <> OpToString " > " <> castST b
   peLTE a b = castST a <> OpToString " <= " <> castST b
@@ -66,23 +68,23 @@ instance PascalExpr OpToString where
   peSum a b = a <> OpToString " + " <> b
   peSub a b = a <> OpToString " - " <> b
   peBOr a b = a <> OpToString " or " <> b
-  peOr a b = a <> OpToString " or " <> b
+  peOr a b = castST a <> OpToString " or " <> castST b
   peBXor a b = a <> OpToString " xor " <> b
-  peXor a b = a <> OpToString " xor " <> b
+  peXor a b = castST a <> OpToString " xor " <> castST b
   peMul a b = a <> OpToString " * " <> b
   peDivide a b = a <> OpToString " / " <> b
   peDiv a b = castST a <> OpToString " div " <> castST b
   peMod a b = castST a <> OpToString " mod " <> castST b
   peBAnd a b = a <> OpToString " and " <> b
-  peAnd a b = a <> OpToString " and " <> b
+  peAnd a b = castST a <> OpToString " and " <> castST b
   peBNot e = OpToString "not " <> e
-  peNot e = OpToString "not " <> e
+  peNot e = OpToString "not " <> castST e
   peNeg e = OpToString "-" <> e
   pePos e = OpToString "+" <> e
   peVar = OpToString
   peReal = OpToString . show
   peInt = OpToString . show
-  peStr = OpToString
+  peStr s = OpToString "\"" <> OpToString s <> OpToString "\""
   peBool = OpToString . show
   peBr e = OpToString "(" <> e <> OpToString ")"
 

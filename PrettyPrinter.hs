@@ -24,12 +24,9 @@ castST (OpToString s) = OpToString s
 
 instance PascalExpr OpToString where
   peAssign (Var v) e = OpToString v <> OpToString " := " <> castST e
-  peRead e = OpToString "read(" <> castST e <> OpToString ")"
-  peReadln e = OpToString "readln(" <> castST e <> OpToString ")"
-  peWrite es = OpToString "write(" <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST es)))
-               <> castST (last es) <> OpToString ")"
-  peWriteln es = OpToString "writeln(" <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST es)))
-                 <> castST (last es) <> OpToString ")"
+  peReadln (Var v) = OpToString "readln(" <> OpToString v <> OpToString ")"
+  peWrite e = OpToString "write(" <> castST e <> OpToString ")"
+  peWriteln e = OpToString "writeln(" <> castST e <> OpToString ")"
   peWhile c ops = OpToString "while " <> castST c <> OpToString " do\n"
                   <> (if (length ops > 1)
                         then OpToString "  begin\n"

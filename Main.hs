@@ -11,4 +11,8 @@ main = do
   inh <- openFile "in.txt" ReadMode
   input <- hGetContents inh
   let parseResult = parseProgram (alexScanTokens input)
-  interpret parseResult
+  putStrLn "Choose action: 1 - prettyPrint, 2 - interpret"
+  action <- getLine
+  case action of
+    "1" -> putStrLn $ prettyPrint parseResult
+    "2" -> interpret parseResult

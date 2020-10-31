@@ -23,7 +23,6 @@ tokens :-
   "end"                                     { \str -> TEnd }
   "function"                                { \str -> TFunction }
   "procedure"                               { \str -> TProcedure }
-  "read"                                    { \str -> TRead }
   "readln"                                  { \str -> TReadln }
   "write"                                   { \str -> TWrite }
   "writeln"                                 { \str -> TWriteln }
@@ -73,7 +72,6 @@ data Token =
   TEnd |
   TFunction |
   TProcedure |
-  TRead |
   TReadln |
   TWrite |
   TWriteln |

@@ -29,7 +29,6 @@ import Lexer
   "end"       { TEnd }
   "function"  { TFunction }
   "procedure" { TProcedure }
-  "read"      { TRead }
   "readln"    { TReadln }
   "write"     { TWrite }
   "writeln"   { TWriteln }
@@ -142,13 +141,12 @@ Assign:
 
 ReadOps :: { forall expr. PascalExpr expr => expr () }
 ReadOps:
-  "read" "(" Expr ")"                                       { peRead $3 }
-  | "readln" "(" Expr ")"                                   { peReadln $3 }
+  "readln" "(" variable ")"                                 { peReadln $ Var $3 }
 
 WriteOps :: { forall expr. PascalExpr expr => expr () }
 WriteOps:
-  "write" "(" PassedArgs ")"                                { peWrite $3 }
-  | "writeln" "(" PassedArgs ")"                            { peWriteln $3 }
+  "write" "(" Expr ")"                                      { peWrite $3 }
+  | "writeln" "(" Expr ")"                                  { peWriteln $3 }
 
 WhileCycle :: { forall expr. PascalExpr expr => expr () }
 WhileCycle:
@@ -243,9 +241,7 @@ BoolUnary:
 BoolAtom :: { forall expr. PascalExpr expr => expr Bool }
 BoolAtom:
   bool                                                      { peBool $1 }
-  | variable                                                { fmap getBool $ peVar $1 }
-  | variable "(" PassedArgs ")"                             { fmap getBool $ peFunApply (Var $1) $3 }
-  | variable "(" ")"                                        { fmap getBool $ peFunApply (Var $1) [] }
+  | VarAtom                                                 { fmap getBool $1 }
   | "(" ExprOrd ")"                                         { peBr $2 }
   | "(" BoolExpr ")"                                        { peBr $2 }
 
@@ -281,9 +277,7 @@ NumAtom :: { forall expr. PascalExpr expr => expr Number }
 NumAtom:
   real                                                      { peReal $1 }
   | int                                                     { peInt $1 }
-  | variable                                                { fmap getNum $ peVar $1 }
-  | variable "(" PassedArgs ")"                             { fmap getNum $ peFunApply (Var $1) $3 }
-  | variable "(" ")"                                        { fmap getNum $ peFunApply (Var $1) [] }
+  | VarAtom                                                 { fmap getNum $1 }
   | "(" NumExpr ")"                                         { peBr $2 }
 
 StrExpr :: { forall expr. PascalExpr expr => expr String }
@@ -298,10 +292,14 @@ StrSum:
 StrAtom :: { forall expr. PascalExpr expr => expr String }
 StrAtom:
   qstring                                                   { peStr $1 }
-  | variable                                                { fmap getStr $ peVar $1 }
-  | variable "(" PassedArgs ")"                             { fmap getStr $ peFunApply (Var $1) $3 }
-  | variable "(" ")"                                        { fmap getStr $ peFunApply (Var $1) [] }
+  | VarAtom                                                 { fmap getStr $1 }
   | "(" StrExpr ")"                                         { peBr $2 }
+
+VarAtom :: { forall expr. PascalExpr expr => expr Variable }
+VarAtom:
+  variable                                                  { peVar $1 }
+  | variable "(" PassedArgs ")"                             { peFunApply (Var $1) $3 }
+  | variable "(" ")"                                        { peFunApply (Var $1) [] }
 
 PassedArgs :: { forall expr. PascalExpr expr => [expr Variable] }
 PassedArgs:
@@ -324,7 +322,35 @@ data Prgm =
 data Number =
   IntCons { getInt :: Integer }
   | FloatCons { getFloat :: Float }
-  deriving (Show, Eq, Ord, Num, Bits, Fractional)
+  deriving (Show, Fractional)
+
+instance Eq Number where
+  (IntCons a) == (IntCons b) = a == b
+  (IntCons a) == (FloatCons b) = ((fromInteger a) :: Float) == b
+  (FloatCons a) == (IntCons b) = a == ((fromInteger b) :: Float)
+  (FloatCons a) == (FloatCons b) = a == b
+
+instance Ord Number where
+  (IntCons a) < (IntCons b) = a < b
+  (IntCons a) < (FloatCons b) = ((fromInteger a) :: Float) < b
+  (FloatCons a) < (IntCons b) = a < ((fromInteger b) :: Float)
+  (FloatCons a) < (FloatCons b) = a < b
+
+instance Num Number where
+  (IntCons a) + (IntCons b) = IntCons (a + b)
+  (IntCons a) + (FloatCons b) = FloatCons (((fromInteger a) :: Float) + b)
+  (FloatCons a) + (IntCons b) = FloatCons (a + ((fromInteger b) :: Float))
+  (FloatCons a) + (FloatCons b) = FloatCons (a + b)
+  (IntCons a) * (IntCons b) = IntCons (a * b)
+  (IntCons a) * (FloatCons b) = FloatCons (((fromInteger a) :: Float) * b)
+  (FloatCons a) * (IntCons b) = FloatCons (a * ((fromInteger b) :: Float))
+  (FloatCons a) * (FloatCons b) = FloatCons (a * b)
+  abs (IntCons a) = IntCons (abs a)
+  abs (FloatCons a) = FloatCons (abs a)
+  signum (IntCons a) = IntCons (signum a)
+  signum (FloatCons a) = FloatCons (signum a)
+  negate (IntCons a) = IntCons (negate a)
+  negate (FloatCons a) = FloatCons (negate a)
 
 data Variable =
   StrCons { getStr :: String }
@@ -334,10 +360,9 @@ data Variable =
 
 class Functor expr => PascalExpr expr where
   peAssign    :: Prgm -> expr Variable -> expr ()
-  peRead      :: expr Variable -> expr ()
-  peReadln    :: expr Variable -> expr ()
-  peWrite     :: [expr Variable] -> expr ()
-  peWriteln   :: [expr Variable] -> expr ()
+  peReadln    :: Prgm -> expr ()
+  peWrite     :: expr Variable -> expr ()
+  peWriteln   :: expr Variable -> expr ()
   peWhile     :: expr Bool -> [Operator] -> expr ()
   peIf        :: expr Bool -> [Operator] -> [Operator] -> expr ()
   peProcApply :: Prgm -> [expr Variable] -> Bool -> expr ()

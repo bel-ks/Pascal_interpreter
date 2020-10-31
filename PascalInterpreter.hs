@@ -74,15 +74,37 @@ instance PascalExpr (StateT InEnv IO) where
         modify (\env -> over varSVals (Map.insert v $ getStr e) env)
       (Just "integer") ->
         modify (\env -> over varIVals (Map.insert v $ getInt $ getNum e) env)
-      (Just "real")   ->
+      (Just "real")    ->
         modify (\env -> over varFVals (Map.insert v $ getFloat $ getNum e) env)
       Nothing          -> lift $ throwIO $ NoSuchVarException v
+  peReadln (Var v) = do
     env <- get
-    lift $ putStrLn $ show env
-  peRead e = undefined
-  peReadln e = undefined
-  peWrite es = undefined
-  peWriteln es = undefined
+    val <- lift $ getLine
+    let t = Map.lookup v (view varTypes env)
+    case t of
+      (Just "boolean") ->
+        modify (\env -> over varBVals (Map.insert v ((read val) :: Bool)) env)
+      (Just "string")  ->
+        modify (\env -> over varSVals (Map.insert v val) env)
+      (Just "integer") ->
+        modify (\env -> over varIVals (Map.insert v ((read val) :: Integer)) env)
+      (Just "real")    ->
+        modify (\env -> over varFVals (Map.insert v ((read val) :: Float)) env)
+      Nothing          -> lift $ throwIO $ NoSuchVarException v
+  peWrite e = do
+    expr <- e
+    lift $ putStr $ case expr of
+                      (BoolCons b) -> show b
+                      (StrCons s)  -> s
+                      (NumCons (IntCons i)) -> show i
+                      (NumCons (FloatCons f)) -> show f
+  peWriteln e = do
+    expr <- e
+    lift $ putStrLn $ case expr of
+                        (BoolCons b) -> show b
+                        (StrCons s) -> s
+                        (NumCons (IntCons i)) -> show i
+                        (NumCons (FloatCons f)) -> show f
   peWhile cond ops = do
     c <- cond
     if c
@@ -123,16 +145,17 @@ instance PascalExpr (StateT InEnv IO) where
   peVar v = do
     env <- get
     let t = Map.lookup v (view varTypes env)
-    lift $ case t of
-             (Just "boolean") ->
-               return $ BoolCons $ (view varBVals env) Map.! v
-             (Just "string")  ->
-               return $ StrCons $ (view varSVals env) Map.! v
-             (Just "integer") ->
-               return $ NumCons $ IntCons $ (view varIVals env) Map.! v
-             (Just "real")   ->
-               return $ NumCons $ FloatCons $ (view varFVals env) Map.! v
-             Nothing  -> throwIO $ NoSuchVarException v
+    case t of
+      (Just "boolean") ->
+        lift $ return $ BoolCons $ (view varBVals env) Map.! v
+      (Just "string")  ->
+        lift $ return $ StrCons $ (view varSVals env) Map.! v
+      (Just "integer") ->
+        lift $ return $ NumCons $ IntCons $ (view varIVals env) Map.! v
+      (Just "real")    ->
+        lift $ return $ NumCons $ FloatCons $ (view varFVals env) Map.! v
+      Nothing          ->
+        lift $ throwIO $ NoSuchVarException v
   peReal r = lift $ return $ FloatCons r
   peInt i = lift $ return $ IntCons i
   peStr s = lift $ return s
@@ -176,25 +199,27 @@ checkFunDef (FunDef (Var n, Type t) ars) ops
         modify (\env -> over funs (Map.insert n (t, ars)) env)
         modify (\env -> over funOps (Map.insert n ops) env)
 
-checkLocalVariables :: Name -> [Prgm] -> Prgm -> StateT InEnv IO()
-checkLocalVariables n vs (Type t) = undefined
+checkLocalVariables :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
+checkLocalVariables vs (Type t) n = do
+  env <- get
+  return ()
 
-collectLocalVariables :: Prgm -> [Prgm] -> StateT InEnv IO()
-collectLocalVariables def [] = return ()
-collectLocalVariables (FunDef (Var n, _) ars) ((VarLine (vs, t)) : []) =
-  checkLocalVariables n vs t
-collectLocalVariables def@(FunDef (Var n, _) ars) ((VarLine (vs, t)) : ps) = do
-  checkLocalVariables n vs t
-  collectLocalVariables def ps
+collectLocalVariables :: [Prgm] -> Prgm -> StateT InEnv IO()
+collectLocalVariables [] def = return ()
+collectLocalVariables ((VarLine (vs, t)) : []) (FunDef (Var n, _) ars) =
+  checkLocalVariables vs t n
+collectLocalVariables ((VarLine (vs, t)) : ps) def@(FunDef (Var n, _) ars) = do
+  checkLocalVariables vs t n
+  collectLocalVariables ps def
 
 collectFunsAndProcs :: [Prgm] -> StateT InEnv IO()
 collectFunsAndProcs [] = return ()
 collectFunsAndProcs ((Function def vb ops) : []) = do
   checkFunDef def ops
-  collectLocalVariables def vb
+  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
 collectFunsAndProcs ((Function def vb ops) : fps) = do
   checkFunDef def ops
-  collectLocalVariables def vb
+  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
   collectFunsAndProcs fps
 
 interpretOperators :: [Operator] -> StateT InEnv IO()

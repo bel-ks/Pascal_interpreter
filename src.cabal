@@ -1,0 +1,47 @@
+name:                src
+version:             0.1.0.0
+synopsis:            Synopsis for interpreter
+description:         Description for interpreter
+
+homepage:            https://github.com/bel-ks/Pascal_interpreter/blob/main/src
+license:             MIT
+license-file:        LICENSE
+author:              bel-ks
+maintainer:          RacSumPar@gmail.com
+copyright:           2020 bel-ks
+
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+tested-with:         GHC == 8.0.1
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Lexer
+                     , Syntax
+                     , MyExceptions
+                     , PascalInterpreter
+                     , PrettyPrinter
+
+  ghc-options:         -Wall
+  build-depends:       base >= 4.9 && < 5
+                     , mtl
+                     , array
+                     , transformers
+                     , containers
+                     , lens
+
+  build-tools:         alex
+                     , happy
+
+  default-language:    Haskell2010
+
+executable interpreter
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , src
+                     , directory
+  default-language:    Haskell2010
+

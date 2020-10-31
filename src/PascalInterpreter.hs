@@ -12,7 +12,6 @@ import Control.Monad.Trans
 import Control.Monad.Trans.State
 import Data.Bits
 import qualified Data.Map as Map
-import Lexer
 import MyExceptions
 import PrettyPrinter
 import Syntax
@@ -29,6 +28,9 @@ type FunOps = Map.Map Name [Operator]
 type Procs = Map.Map Name Args
 type ProcVars = Map.Map Name VarTypes
 type ProcOps = Map.Map Name [Operator]
+
+instance Show Prgm where
+  show = prettyPrint
 
 data InEnv = InEnv
   { _varTypes :: VarTypes
@@ -69,28 +71,32 @@ instance PascalExpr (StateT InEnv IO) where
     let t = Map.lookup v (view varTypes env)
     case t of
       (Just "boolean") ->
-        modify (\env -> over varBVals (Map.insert v $ getBool e) env)
+        modify (\envL -> over varBVals (Map.insert v $ getBool e) envL)
       (Just "string")  ->
-        modify (\env -> over varSVals (Map.insert v $ getStr e) env)
+        modify (\envL -> over varSVals (Map.insert v $ getStr e) envL)
       (Just "integer") ->
-        modify (\env -> over varIVals (Map.insert v $ getInt $ getNum e) env)
+        modify (\envL -> over varIVals (Map.insert v $ getInt $ getNum e) envL)
       (Just "real")    ->
-        modify (\env -> over varFVals (Map.insert v $ getFloat $ getNum e) env)
+        modify (\envL -> over varFVals (Map.insert v $ getFloat $ getNum e) envL)
+      (Just _)         -> undefined
       Nothing          -> lift $ throwIO $ NoSuchVarException v
+  peAssign c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Var)" "peAssign"
   peReadln (Var v) = do
     env <- get
     val <- lift $ getLine
     let t = Map.lookup v (view varTypes env)
     case t of
       (Just "boolean") ->
-        modify (\env -> over varBVals (Map.insert v ((read val) :: Bool)) env)
+        modify (\envL -> over varBVals (Map.insert v ((read val) :: Bool)) envL)
       (Just "string")  ->
-        modify (\env -> over varSVals (Map.insert v val) env)
+        modify (\envL -> over varSVals (Map.insert v val) envL)
       (Just "integer") ->
-        modify (\env -> over varIVals (Map.insert v ((read val) :: Integer)) env)
+        modify (\envL -> over varIVals (Map.insert v ((read val) :: Integer)) envL)
       (Just "real")    ->
-        modify (\env -> over varFVals (Map.insert v ((read val) :: Float)) env)
+        modify (\envL -> over varFVals (Map.insert v ((read val) :: Float)) envL)
+      (Just _)         -> undefined
       Nothing          -> lift $ throwIO $ NoSuchVarException v
+  peReadln c = lift $ throwIO $ IncorrectConstructorException (show c) "(Var)" "peReadln"
   peWrite e = do
     expr <- e
     lift $ putStr $ case expr of
@@ -117,8 +123,8 @@ instance PascalExpr (StateT InEnv IO) where
     if c
       then interpretOperators t
       else interpretOperators e
-  peProcApply f vs isPr = undefined
-  peFunApply f vs = undefined
+  peProcApply = undefined
+  peFunApply = undefined
   peLT a b = (fmap (<) a) <*> b
   peGT a b = (fmap (>) a) <*> b
   peLTE a b = (fmap (<=) a) <*> b
@@ -154,6 +160,7 @@ instance PascalExpr (StateT InEnv IO) where
         lift $ return $ NumCons $ IntCons $ (view varIVals env) Map.! v
       (Just "real")    ->
         lift $ return $ NumCons $ FloatCons $ (view varFVals env) Map.! v
+      (Just _)         -> undefined
       Nothing          ->
         lift $ throwIO $ NoSuchVarException v
   peReal r = lift $ return $ FloatCons r
@@ -168,7 +175,8 @@ checkVariables vs (Type t) = do
   forM_ vs (\(Var v) ->
     if Map.member v (view varTypes env)
       then lift $ throwIO $ AlreadyUsedVarException v ((view varTypes env) Map.! v)
-      else modify (\env -> over varTypes (Map.insert v t) env))
+      else modify (\envL -> over varTypes (Map.insert v t) envL))
+checkVariables _ c = lift $ throwIO $ IncorrectConstructorException (show c) "(Type)" "checkVariables"
 
 collectVariables :: [Prgm] -> StateT InEnv IO()
 collectVariables [] = return ()
@@ -177,6 +185,7 @@ collectVariables ((VarLine (vs, t)) : []) =
 collectVariables ((VarLine (vs, t)) : ps) = do
   checkVariables vs t
   collectVariables ps
+collectVariables c = lift $ throwIO $ IncorrectConstructorException (show c) "[VarLine]" "collectVariables"
 
 checkFunDef :: Prgm -> [Operator] -> StateT InEnv IO()
 checkFunDef (FunDef (Var n, Type t) ars) ops
@@ -187,8 +196,8 @@ checkFunDef (FunDef (Var n, Type t) ars) ops
         || (Map.member n (view varTypes env))
       then lift $ throwIO $ AlreadyUsedProcedureNameException n
       else do
-        modify (\env -> over procs (Map.insert n ars) env)
-        modify (\env -> over procOps (Map.insert n ops) env)
+        modify (\envL -> over procs (Map.insert n ars) envL)
+        modify (\envL -> over procOps (Map.insert n ops) envL)
   | otherwise = do
     env <- get
     if (Map.member n (view funs env))
@@ -196,21 +205,21 @@ checkFunDef (FunDef (Var n, Type t) ars) ops
         || (Map.member n (view varTypes env))
       then lift $ throwIO $ AlreadyUsedFunctionNameException n
       else do
-        modify (\env -> over funs (Map.insert n (t, ars)) env)
-        modify (\env -> over funOps (Map.insert n ops) env)
+        modify (\envL -> over funs (Map.insert n (t, ars)) envL)
+        modify (\envL -> over funOps (Map.insert n ops) envL)
+checkFunDef c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(FunDef)" "checkFunDef"
 
 checkLocalVariables :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
-checkLocalVariables vs (Type t) n = do
-  env <- get
-  return ()
+checkLocalVariables = undefined
 
 collectLocalVariables :: [Prgm] -> Prgm -> StateT InEnv IO()
-collectLocalVariables [] def = return ()
-collectLocalVariables ((VarLine (vs, t)) : []) (FunDef (Var n, _) ars) =
+collectLocalVariables [] _ = return ()
+collectLocalVariables ((VarLine (vs, t)) : []) (FunDef (Var n, _) _) =
   checkLocalVariables vs t n
-collectLocalVariables ((VarLine (vs, t)) : ps) def@(FunDef (Var n, _) ars) = do
+collectLocalVariables ((VarLine (vs, t)) : ps) def@(FunDef (Var n, _) _) = do
   checkLocalVariables vs t n
   collectLocalVariables ps def
+collectLocalVariables c _ = lift $ throwIO $ IncorrectConstructorException (show c) "[VarLine]" "collectLocalVariables"
 
 collectFunsAndProcs :: [Prgm] -> StateT InEnv IO()
 collectFunsAndProcs [] = return ()
@@ -221,12 +230,13 @@ collectFunsAndProcs ((Function def vb ops) : fps) = do
   checkFunDef def ops
   forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
   collectFunsAndProcs fps
+collectFunsAndProcs c = lift $ throwIO $ IncorrectConstructorException (show c) "[Function]" "collectFunsAndProcs"
 
 interpretOperators :: [Operator] -> StateT InEnv IO()
 interpretOperators [] = return ()
-interpretOperators ((Operator op) : []) = op
-interpretOperators ((Operator op) : ops) = do
-  op
+interpretOperators ((Operator o) : []) = o
+interpretOperators ((Operator o) : ops) = do
+  o
   interpretOperators ops
 
 interpretPrgm :: Prgm -> StateT InEnv IO()
@@ -235,6 +245,7 @@ interpretPrgm (Program vb fb ob) = do
   collectFunsAndProcs fb
   interpretOperators ob
   lift $ putStrLn "Process finished."
+interpretPrgm c = lift $ throwIO $ IncorrectConstructorException (show c) "Program" "interpretPrgm"
 
 interpret :: Prgm -> IO()
 interpret p = evalStateT (interpretPrgm p) dummyEnv

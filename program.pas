@@ -10,8 +10,12 @@ begin
 end;
 
 begin
+  readln(a);
   b := 10;
-  a := foo(a);
+  if (a < 5) then
+    b := 10
+  else
+    b := 3;
   write("a: ");
   writeln(a);
   write("b: ");

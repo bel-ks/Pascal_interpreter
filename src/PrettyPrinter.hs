@@ -176,6 +176,8 @@ prettyPrintPrgm (FunDef (n, t)  ars) = do
           modify (\(tc, r) -> (tc, r ++ "): "))
           prettyPrintPrgm t
 
+-- | Function gets Token tree with parsed Pascal program
+--   and returns string with it in a pretty form.
 prettyPrint :: Prgm -> String
 prettyPrint p = evalState (prettyPrintPrgm p) (0, "")
 

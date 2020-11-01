@@ -457,5 +457,7 @@ interpretPrgm (Program vb fb ob) = do
   lift $ putStrLn "Process finished."
 interpretPrgm c = lift $ throwIO $ IncorrectConstructorException (show c) "Program" "interpretPrgm"
 
+-- | Function gets Token tree with parsed Pascal program
+--   and evalutes it.
 interpret :: Prgm -> IO()
 interpret p = evalStateT (interpretPrgm p) dummyEnv

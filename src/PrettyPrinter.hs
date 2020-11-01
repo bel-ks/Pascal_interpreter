@@ -64,20 +64,15 @@ instance PascalExpr OpToString where
   peGTE a b = castST a <> OpToString " >= " <> castST b
   peEq a b = castST a <> OpToString " = " <> castST b
   peNotEq a b = castST a <> OpToString " <> " <> castST b
-  peStrSum a b = a <> OpToString " + " <> b
   peSum a b = a <> OpToString " + " <> b
   peSub a b = a <> OpToString " - " <> b
-  peBOr a b = a <> OpToString " or " <> b
   peOr a b = castST a <> OpToString " or " <> castST b
-  peBXor a b = a <> OpToString " xor " <> b
   peXor a b = castST a <> OpToString " xor " <> castST b
   peMul a b = a <> OpToString " * " <> b
   peDivide a b = a <> OpToString " / " <> b
   peDiv a b = castST a <> OpToString " div " <> castST b
   peMod a b = castST a <> OpToString " mod " <> castST b
-  peBAnd a b = a <> OpToString " and " <> b
   peAnd a b = castST a <> OpToString " and " <> castST b
-  peBNot e = OpToString "not " <> e
   peNot e = OpToString "not " <> castST e
   peNeg e = OpToString "-" <> e
   pePos e = OpToString "+" <> e

@@ -16,6 +16,20 @@ instance Exception UndefinedActionException
 instance Show UndefinedActionException where
   show _ = "UndefinedActionException: Choose one of defined actions."
 
+data DifferentTypesException = DifferentTypesException
+
+instance Exception DifferentTypesException
+
+instance Show DifferentTypesException where
+  show _ = "DifferentTypesException: Expressions should have same types."
+
+data NotBoolTypeException = NotBoolTypeException
+
+instance Exception NotBoolTypeException
+
+instance Show NotBoolTypeException where
+  show _ = "NotBoolTypeException: Expression should have bool type."
+
 data IncorrectConstructorException =
   IncorrectConstructorException Expected Actual Place
 

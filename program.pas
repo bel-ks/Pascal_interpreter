@@ -40,15 +40,8 @@ begin
 end;
 
 begin
-  if False then
-    a := 5
-  else
-    r := 5.6;
   readln(a);
-  f := True;
-  f2 := False;
-  f := f2;
-  b := 7;
-  a := b;
-  write(a + b);
+  while a < 5 do
+    a := a + 1;
+  writeln(a or 2);
 end.

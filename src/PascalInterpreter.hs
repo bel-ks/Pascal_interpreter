@@ -25,9 +25,6 @@ type Args = [Prgm]
 type Funs = Map.Map Name (Type, Args)
 type FunVars = Map.Map Name VarTypes
 type FunOps = Map.Map Name [Operator]
-type Procs = Map.Map Name Args
-type ProcVars = Map.Map Name VarTypes
-type ProcOps = Map.Map Name [Operator]
 
 instance Show Prgm where
   show = prettyPrint
@@ -41,9 +38,6 @@ data InEnv = InEnv
   , _funs     :: Funs
   , _funVars  :: FunVars
   , _funOps   :: FunOps
-  , _procs    :: Procs
-  , _procVars :: ProcVars
-  , _procOps  :: ProcOps
   }
   deriving Show
 
@@ -59,9 +53,6 @@ dummyEnv = InEnv
   , _funs     = Map.empty
   , _funVars  = Map.empty
   , _funOps   = Map.empty
-  , _procs    = Map.empty
-  , _procVars = Map.empty
-  , _procOps  = Map.empty
   }
 
 instance PascalExpr (StateT InEnv IO) where
@@ -113,41 +104,153 @@ instance PascalExpr (StateT InEnv IO) where
                         (NumCons (FloatCons f)) -> show f
   peWhile cond ops = do
     c <- cond
-    if c
-      then do
-        interpretOperators ops
-        peWhile cond ops
-      else return ()
+    case c of
+      (BoolCons cn) ->
+        if cn
+          then do
+            interpretOperators ops
+            peWhile cond ops
+          else return ()
+      _ -> lift $ throwIO NotBoolTypeException
   peIf cond t e = do
     c <- cond
-    if c
-      then interpretOperators t
-      else interpretOperators e
+    case c of
+      (BoolCons cn) ->
+        if cn
+          then interpretOperators t
+          else interpretOperators e
+      _ -> lift $ throwIO NotBoolTypeException
   peProcApply = undefined
   peFunApply = undefined
-  peLT a b = (fmap (<) a) <*> b
-  peGT a b = (fmap (>) a) <*> b
-  peLTE a b = (fmap (<=) a) <*> b
-  peGTE a b = (fmap (>=) a) <*> b
-  peEq a b = (fmap (==) a) <*> b
-  peNotEq a b = (fmap (/=) a) <*> b
-  peStrSum a b = (fmap (++) a) <*> b
-  peSum a b = (fmap (+) a) <*> b
-  peSub a b = (fmap (-) a) <*> b
-  peBOr a b = (fmap (||) a) <*> b
-  peOr a b = fmap IntCons $ (fmap (.|.) a) <*> b
-  peBXor a b = (fmap (xor) a) <*> b
-  peXor a b = fmap IntCons $ (fmap (xor) a) <*> b
-  peMul a b = (fmap (*) a) <*> b
-  peDivide a b = (fmap (/) a) <*> b
-  peDiv a b = fmap IntCons $ (fmap (div) a) <*> b
-  peMod a b = fmap IntCons $ (fmap (mod) a) <*> b
-  peBAnd a b = (fmap (&&) a) <*> b
-  peAnd a b = fmap IntCons $ (fmap (.&.) a) <*> b
-  peBNot e = fmap not e
-  peNot e = fmap IntCons $ fmap complement e
-  peNeg e = fmap negate e
-  pePos = id
+  peLT ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ BoolCons $ an < bn
+             ((StrCons an), (StrCons bn)) -> return $ BoolCons $ an < bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an < bn
+             (_, _) -> throwIO DifferentTypesException
+  peGT ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ BoolCons $ an > bn
+             ((StrCons an), (StrCons bn)) -> return $ BoolCons $ an > bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an > bn
+             (_, _) -> throwIO DifferentTypesException
+  peLTE ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ BoolCons $ an <= bn
+             ((StrCons an), (StrCons bn)) -> return $ BoolCons $ an <= bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an <= bn
+             (_, _) -> throwIO DifferentTypesException
+  peGTE ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ BoolCons $ an >= bn
+             ((StrCons an), (StrCons bn)) -> return $ BoolCons $ an >= bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an >= bn
+             (_, _) -> throwIO DifferentTypesException
+  peEq ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ BoolCons $ an == bn
+             ((StrCons an), (StrCons bn)) -> return $ BoolCons $ an == bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an == bn
+             (_, _) -> throwIO DifferentTypesException
+  peNotEq ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ BoolCons $ an /= bn
+             ((StrCons an), (StrCons bn)) -> return $ BoolCons $ an /= bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an /= bn
+             (_, _) -> throwIO DifferentTypesException
+  peSum ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ NumCons $ an + bn
+             ((StrCons an), (StrCons bn)) -> return $ StrCons $ an ++ bn
+             (_, _) -> throwIO DifferentTypesException
+  peSub ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ NumCons $ an - bn
+             (_, _) -> throwIO DifferentTypesException
+  peOr ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons (IntCons an)), (NumCons (IntCons bn))) ->
+               return $ NumCons $ IntCons $ an .|. bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an || bn
+             (_, _) -> throwIO DifferentTypesException
+  peXor ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons (IntCons an)), (NumCons (IntCons bn))) ->
+               return $ NumCons $ IntCons $ xor an bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ xor an bn
+             (_, _) -> throwIO DifferentTypesException
+  peMul ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ NumCons $ an * bn
+             (_, _) -> throwIO DifferentTypesException
+  peDivide ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons an), (NumCons bn)) -> return $ NumCons $ an / bn
+             (_, _) -> throwIO DifferentTypesException
+  peDiv ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons (IntCons an)), (NumCons (IntCons bn))) ->
+               return $ NumCons $ IntCons $ div an bn
+             (_, _) -> throwIO DifferentTypesException
+  peMod ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons (IntCons an)), (NumCons (IntCons bn))) ->
+               return $ NumCons $ IntCons $ mod an bn
+             (_, _) -> throwIO DifferentTypesException
+  peAnd ma mb = do
+    a <- ma
+    b <- mb
+    lift $ case (a, b) of
+             ((NumCons (IntCons an)), (NumCons (IntCons bn))) ->
+               return $ NumCons $ IntCons $ an .&. bn
+             ((BoolCons an), (BoolCons bn)) -> return $ BoolCons $ an && bn
+             (_, _) -> throwIO DifferentTypesException
+  peNot me = do
+    e <- me
+    lift $ case e of
+             (NumCons (IntCons en)) ->
+               return $ NumCons $ IntCons $ complement en
+             (BoolCons en) -> return $ BoolCons $ not en
+             _ -> throwIO DifferentTypesException
+  peNeg me = do
+    e <- me
+    lift $ case e of
+             (NumCons (IntCons en)) ->
+               return $ NumCons $ IntCons $ negate en
+             _ -> throwIO DifferentTypesException
+  pePos me = do
+    e <- me
+    lift $ case e of
+             (NumCons (IntCons _)) -> return e
+             _ -> throwIO DifferentTypesException
   peVar v = do
     env <- get
     let t = Map.lookup v (view varTypes env)
@@ -163,10 +266,10 @@ instance PascalExpr (StateT InEnv IO) where
       (Just _)         -> undefined
       Nothing          ->
         lift $ throwIO $ NoSuchVarException v
-  peReal r = lift $ return $ FloatCons r
-  peInt i = lift $ return $ IntCons i
-  peStr s = lift $ return s
-  peBool b = lift $ return b
+  peReal r = lift $ return $ NumCons $ FloatCons r
+  peInt i = lift $ return $ NumCons $ IntCons i
+  peStr s = lift $ return $ StrCons s
+  peBool b = lift $ return $ BoolCons b
   peBr = id
 
 checkVariables :: [Prgm] -> Prgm -> StateT InEnv IO()
@@ -188,25 +291,14 @@ collectVariables ((VarLine (vs, t)) : ps) = do
 collectVariables c = lift $ throwIO $ IncorrectConstructorException (show c) "[VarLine]" "collectVariables"
 
 checkFunDef :: Prgm -> [Operator] -> StateT InEnv IO()
-checkFunDef (FunDef (Var n, Type t) ars) ops
-  | t == "" = do
-    env <- get
-    if (Map.member n (view procs env))
-        || (Map.member n (view funs env))
-        || (Map.member n (view varTypes env))
-      then lift $ throwIO $ AlreadyUsedProcedureNameException n
-      else do
-        modify (\envL -> over procs (Map.insert n ars) envL)
-        modify (\envL -> over procOps (Map.insert n ops) envL)
-  | otherwise = do
-    env <- get
-    if (Map.member n (view funs env))
-        || (Map.member n (view procs env))
-        || (Map.member n (view varTypes env))
-      then lift $ throwIO $ AlreadyUsedFunctionNameException n
-      else do
-        modify (\envL -> over funs (Map.insert n (t, ars)) envL)
-        modify (\envL -> over funOps (Map.insert n ops) envL)
+checkFunDef (FunDef (Var n, Type t) ars) ops = do
+  env <- get
+  if (Map.member n (view funs env))
+      || (Map.member n (view varTypes env))
+    then lift $ throwIO $ AlreadyUsedFunctionNameException n
+    else do
+      modify (\envL -> over funs (Map.insert n (t, ars)) envL)
+      modify (\envL -> over funOps (Map.insert n ops) envL)
 checkFunDef c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(FunDef)" "checkFunDef"
 
 checkLocalVariables :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
@@ -225,10 +317,10 @@ collectFunsAndProcs :: [Prgm] -> StateT InEnv IO()
 collectFunsAndProcs [] = return ()
 collectFunsAndProcs ((Function def vb ops) : []) = do
   checkFunDef def ops
-  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
+--  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
 collectFunsAndProcs ((Function def vb ops) : fps) = do
   checkFunDef def ops
-  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
+--  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
   collectFunsAndProcs fps
 collectFunsAndProcs c = lift $ throwIO $ IncorrectConstructorException (show c) "[Function]" "collectFunsAndProcs"
 

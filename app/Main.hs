@@ -27,11 +27,13 @@ import System.IO
 
 main :: IO()
 main = do
-  inh <- openFile "program.pas" ReadMode
-  input <- hGetContents inh
-  let parseResult = parseProgram (alexScanTokens input)
   putStrLn "Choose action: 1 - prettyPrint, 2 - interpret"
   action <- getLine
+  putStrLn "Enter file name (program.pas as example):"
+  file <- getLine
+  inh <- openFile file ReadMode
+  input <- hGetContents inh
+  let parseResult = parseProgram (alexScanTokens input)
   case action of
     "1" -> putStrLn $ prettyPrint parseResult
     "2" -> interpret parseResult

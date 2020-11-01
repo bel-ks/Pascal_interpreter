@@ -8,6 +8,7 @@ module MyExceptions
   , Name
   , NotBoolTypeException (..)
   , NoSuchVarException (..)
+  , NoSuchTypeException (..)
   , NoSuchFunException (..)
   , Type
   , UndefinedActionException (..)
@@ -140,3 +141,15 @@ instance Show ArgumentsException where
   show (ArgumentsException n) =
     "ArgumentsException: There is not enough or "
     ++ "too much arguments in function \"" ++ n ++ "\"."
+
+-- | Exception type. Gets type name.
+--   Is thrown when unknown type was used.
+data NoSuchTypeException =
+  NoSuchTypeException Type
+
+instance Exception NoSuchTypeException
+
+instance Show NoSuchTypeException where
+  show (NoSuchTypeException t) =
+    "NoSuchTypeException: Unknown type \"" ++ t
+    ++ "\"."

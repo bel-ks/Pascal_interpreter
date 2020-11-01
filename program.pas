@@ -3,7 +3,7 @@ var a, b: integer;
     s: string;
     f, f2 : boolean;
 
-function foo(b: integer;): integer;
+function foo(b: integer): integer;
 begin
   b := b - 1;
   foo := b + 5;
@@ -12,10 +12,11 @@ end;
 begin
   readln(a);
   b := 10;
-  if (a < 5) then
-    b := 10
+  a := foo(4);
+  if a = 10 then
+    a := 100
   else
-    b := 3;
+    b := 100;
   write("a: ");
   writeln(a);
   write("b: ");

@@ -16,6 +16,7 @@ import MyExceptions
   , IncorrectConstructorException (..)
   , Name
   , NoSuchFunException (..)
+  , NoSuchTypeException (..)
   , NoSuchVarException (..)
   , NotBoolTypeException (..)
   , Type
@@ -61,6 +62,7 @@ import Data.Bits
 import qualified Data.Map as Map
   ( (!)
   , empty
+  , findWithDefault
   , insert
   , lookup
   , Map
@@ -121,7 +123,7 @@ instance PascalExpr (StateT InEnv IO) where
         modify (\envL -> over varIVals (Map.insert v $ getInt $ getNum e) envL)
       (Just "real")    ->
         modify (\envL -> over varFVals (Map.insert v $ getFloat $ getNum e) envL)
-      (Just _)         -> undefined
+      (Just st)        -> lift $ throwIO $ NoSuchTypeException st
       Nothing          -> lift $ throwIO $ NoSuchVarException v
   peAssign c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Var)" "peAssign"
   peReadln (Var v) = do
@@ -137,7 +139,7 @@ instance PascalExpr (StateT InEnv IO) where
         modify (\envL -> over varIVals (Map.insert v ((read val) :: Integer)) envL)
       (Just "real")    ->
         modify (\envL -> over varFVals (Map.insert v ((read val) :: Float)) envL)
-      (Just _)         -> undefined
+      (Just st)        -> lift $ throwIO $ NoSuchTypeException st
       Nothing          -> lift $ throwIO $ NoSuchVarException v
   peReadln c = lift $ throwIO $ IncorrectConstructorException (show c) "(Var)" "peReadln"
   peWrite e = do
@@ -189,18 +191,32 @@ instance PascalExpr (StateT InEnv IO) where
                                     (_, _)                           -> False) (zip needArs ars)
             if (length needArs == length check)
               then do
-                --check Map.!
-                modify (\envL -> over varTypes (Map.union ((view funVars envL) Map.! n)) envL)
+                modify (\envL -> over varTypes (
+                          if Map.member n (view funVars envL)
+                            then Map.union ((view funVars envL) Map.! n) 
+                            else id) envL)
                 let t = fst ((view funs env) Map.! n)
                 modify (\envL -> over varTypes (Map.insert n t) envL)
-                interpretOperators ((view funOps env) Map.! n)
+                interpretOperators (Map.findWithDefault [] n (view funOps env))
                 nenv <- get
                 modify (\_ -> env)
                 lift $ return $ case t of
-                                  "boolean" -> BoolCons $ (view varBVals nenv) Map.! n
-                                  "string"  -> StrCons $ (view varSVals nenv) Map.! n
-                                  "integer" -> NumCons $ IntCons $ (view varIVals nenv) Map.! n
-                                  "real"    -> NumCons $ FloatCons $ (view varFVals nenv) Map.! n
+                                  "boolean" ->
+                                    BoolCons $ case (Map.lookup n (view varBVals nenv)) of
+                                                 (Just r) -> r
+                                                 Nothing  -> undefined
+                                  "string"  ->
+                                    StrCons $ case (Map.lookup n (view varSVals nenv)) of
+                                                (Just r) -> r
+                                                Nothing  -> undefined
+                                  "integer" ->
+                                    NumCons $ IntCons $ case (Map.lookup n (view varIVals nenv)) of
+                                                          (Just r) -> r
+                                                          Nothing  -> undefined
+                                  "real"    ->
+                                    NumCons $ FloatCons $ case (Map.lookup n (view varFVals nenv)) of
+                                                            (Just r) -> r
+                                                            Nothing  -> undefined
                                   _         -> undefined
               else lift $ throwIO $ ArgumentsException n
           else lift $ throwIO $ ArgumentsException n
@@ -340,13 +356,21 @@ instance PascalExpr (StateT InEnv IO) where
     let t = Map.lookup v (view varTypes env)
     case t of
       (Just "boolean") ->
-        lift $ return $ BoolCons $ (view varBVals env) Map.! v
+        lift $ return $ BoolCons $ case (Map.lookup v (view varBVals env)) of
+                                     (Just r) -> r
+                                     Nothing  -> undefined
       (Just "string")  ->
-        lift $ return $ StrCons $ (view varSVals env) Map.! v
+        lift $ return $ StrCons $ case (Map.lookup v (view varSVals env)) of
+                                    (Just r) -> r
+                                    Nothing  -> undefined
       (Just "integer") ->
-        lift $ return $ NumCons $ IntCons $ (view varIVals env) Map.! v
+        lift $ return $ NumCons $ IntCons $ case (Map.lookup v (view varIVals env)) of
+                                              (Just r) -> r
+                                              Nothing  -> undefined
       (Just "real")    ->
-        lift $ return $ NumCons $ FloatCons $ (view varFVals env) Map.! v
+        lift $ return $ NumCons $ FloatCons $ case (Map.lookup v (view varFVals env)) of
+                                                (Just r) -> r
+                                                Nothing  -> undefined
       (Just _)         -> undefined
       Nothing          ->
         lift $ throwIO $ NoSuchVarException v
@@ -377,12 +401,14 @@ collectVariables c = lift $ throwIO $ IncorrectConstructorException (show c) "[V
 checkLocalVariables :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
 checkLocalVariables vs (Type t) n = do
   env <- get
+  let fv = if Map.member n (view funVars env)
+             then (view funVars env) Map.! n
+             else Map.empty
   forM_ vs (\(Var v) ->
-    if (Map.member v (view funs env))
-        || (Map.member v ((view funVars env) Map.! n))
+    if (Map.member v (view funs env)) || (Map.member v fv)
       then lift $ throwIO $ AlreadyUsedLocalVarException v
       else do
-        let fvs = Map.insert v t $ (view funVars env) Map.! n
+        let fvs = Map.insert v t fv
         modify (\envL -> over funVars (Map.insert n fvs) envL))
 checkLocalVariables _ c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Type)" "checkLocalVariables"
 
@@ -393,7 +419,9 @@ checkArgs vs (Type t) n = do
     if (Map.member v (view funs env))
       then lift $ throwIO $ AlreadyUsedLocalVarException v
       else do
-        let fvs = Map.insert v t $ (view funVars env) Map.! n
+        let fvs = Map.insert v t $ if Map.member n (view funVars env)
+                                     then (view funVars env) Map.! n
+                                     else Map.empty
         modify (\envL -> over funVars (Map.insert n fvs) envL))
 checkArgs _ c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Type)" "checkArgs"
 
@@ -454,7 +482,7 @@ interpretPrgm (Program vb fb ob) = do
   forM_ vb (\(VarBlock vl) -> collectVariables vl)
   collectFunsAndProcs fb
   interpretOperators ob
-  lift $ putStrLn "Process finished."
+  lift $ putStrLn "\nProcess finished."
 interpretPrgm c = lift $ throwIO $ IncorrectConstructorException (show c) "Program" "interpretPrgm"
 
 -- | Function gets Token tree with parsed Pascal program

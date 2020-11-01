@@ -85,6 +85,7 @@ DefVarBlock:
 DefVar :: { ([Prgm], Prgm) }
 DefVar:
   Variables ":" type ";"                                    { ($1, Type $3) }
+  | Variables ":" type                                      { ($1, Type $3) }
 
 Variables :: { [Prgm] }
 Variables:
@@ -212,6 +213,18 @@ instance Ord Number where
   (IntCons a) < (FloatCons b) = ((fromInteger a) :: Float) < b
   (FloatCons a) < (IntCons b) = a < ((fromInteger b) :: Float)
   (FloatCons a) < (FloatCons b) = a < b
+  (IntCons a) > (IntCons b) = a > b
+  (IntCons a) > (FloatCons b) = ((fromInteger a) :: Float) > b
+  (FloatCons a) > (IntCons b) = a > ((fromInteger b) :: Float)
+  (FloatCons a) > (FloatCons b) = a > b
+  (IntCons a) <= (IntCons b) = a <= b
+  (IntCons a) <= (FloatCons b) = ((fromInteger a) :: Float) <= b
+  (FloatCons a) <= (IntCons b) = a <= ((fromInteger b) :: Float)
+  (FloatCons a) <= (FloatCons b) = a <= b
+  (IntCons a) >= (IntCons b) = a >= b
+  (IntCons a) >= (FloatCons b) = ((fromInteger a) :: Float) >= b
+  (FloatCons a) >= (IntCons b) = a >= ((fromInteger b) :: Float)
+  (FloatCons a) >= (FloatCons b) = a >= b
 
 instance Num Number where
   (IntCons a) + (IntCons b) = IntCons (a + b)

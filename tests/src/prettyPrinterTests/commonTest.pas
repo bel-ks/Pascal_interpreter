@@ -4,7 +4,9 @@ var
       f,
         f2 : boolean;
 
-function foo(b: integer): integer; begin
+function foo(b: 
+
+               integer): integer; begin
   b := b - 1;
   
 
@@ -13,7 +15,11 @@ function foo(b: integer): integer; begin
 
 begin readln(a);
   b := 10;
-  while a <= 10 do begin
+
+
+  
+  while a <= 10 
+                        do begin
         a := a + b;
                  b := (b - 1);
                             end;

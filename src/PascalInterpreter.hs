@@ -4,7 +4,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module PascalInterpreter
-  ( interpret
+  ( dummyEnv
+  , InEnv (..)
+  , interpret
+  , interpretPrgm
   ) where
 
 import MyExceptions
@@ -343,13 +346,13 @@ instance PascalExpr (StateT InEnv IO) where
   peNeg me = do
     e <- me
     lift $ case e of
-             (NumCons (IntCons en)) ->
-               return $ NumCons $ IntCons $ negate en
+             (NumCons en) ->
+               return $ NumCons $ negate en
              _ -> throwIO DifferentTypesException
   pePos me = do
     e <- me
     lift $ case e of
-             (NumCons (IntCons _)) -> return e
+             (NumCons _) -> return e
              _ -> throwIO DifferentTypesException
   peVar v = do
     env <- get

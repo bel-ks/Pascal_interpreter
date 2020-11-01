@@ -22,7 +22,6 @@ tokens :-
   "begin"                                   { \_ -> TBegin }
   "end"                                     { \_ -> TEnd }
   "function"                                { \_ -> TFunction }
-  "procedure"                               { \_ -> TProcedure }
   "readln"                                  { \_ -> TReadln }
   "write"                                   { \_ -> TWrite }
   "writeln"                                 { \_ -> TWriteln }
@@ -71,7 +70,6 @@ data Token =
   TBegin |
   TEnd |
   TFunction |
-  TProcedure |
   TReadln |
   TWrite |
   TWriteln |

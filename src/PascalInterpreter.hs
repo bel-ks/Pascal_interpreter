@@ -21,7 +21,7 @@ type VarBoolValues = Map.Map Var Bool
 type VarStrValues = Map.Map Var String
 type VarIntValues = Map.Map Var Integer
 type VarFloatValues = Map.Map Var Float
-type Args = [Prgm]
+type Args = [(Var, Type)]
 type Funs = Map.Map Name (Type, Args)
 type FunVars = Map.Map Name VarTypes
 type FunOps = Map.Map Name [Operator]
@@ -120,8 +120,40 @@ instance PascalExpr (StateT InEnv IO) where
           then interpretOperators t
           else interpretOperators e
       _ -> lift $ throwIO NotBoolTypeException
-  peProcApply = undefined
-  peFunApply = undefined
+  peFunApply (Var n) mars = do
+    env <- get
+    ars <- (sequenceA mars)
+    if Map.member n (view funs env)
+      then do
+        let needArs = snd ((view funs env) Map.! n)
+        if (length needArs == length ars)
+          then do
+            let check = filter (\((_, t), e) -> do
+                                  case (t, e) of
+                                    ("boolean", BoolCons _)          -> True
+                                    ("string", StrCons _)            -> True
+                                    ("integer", NumCons (IntCons _)) -> True
+                                    ("real", NumCons (FloatCons _))  -> True
+                                    (_, _)                           -> False) (zip needArs ars)
+            if (length needArs == length check)
+              then do
+                --check Map.!
+                modify (\envL -> over varTypes (Map.union ((view funVars envL) Map.! n)) envL)
+                let t = fst ((view funs env) Map.! n)
+                modify (\envL -> over varTypes (Map.insert n t) envL)
+                interpretOperators ((view funOps env) Map.! n)
+                nenv <- get
+                modify (\_ -> env)
+                lift $ return $ case t of
+                                  "boolean" -> BoolCons $ (view varBVals nenv) Map.! n
+                                  "string"  -> StrCons $ (view varSVals nenv) Map.! n
+                                  "integer" -> NumCons $ IntCons $ (view varIVals nenv) Map.! n
+                                  "real"    -> NumCons $ FloatCons $ (view varFVals nenv) Map.! n
+                                  _         -> undefined
+              else lift $ throwIO $ ArgumentsException n
+          else lift $ throwIO $ ArgumentsException n
+      else lift $ throwIO $ NoSuchFunException n
+  peFunApply c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Var)" "peFunApply"
   peLT ma mb = do
     a <- ma
     b <- mb
@@ -290,37 +322,71 @@ collectVariables ((VarLine (vs, t)) : ps) = do
   collectVariables ps
 collectVariables c = lift $ throwIO $ IncorrectConstructorException (show c) "[VarLine]" "collectVariables"
 
+checkLocalVariables :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
+checkLocalVariables vs (Type t) n = do
+  env <- get
+  forM_ vs (\(Var v) ->
+    if (Map.member v (view funs env))
+        || (Map.member v ((view funVars env) Map.! n))
+      then lift $ throwIO $ AlreadyUsedLocalVarException v
+      else do
+        let fvs = Map.insert v t $ (view funVars env) Map.! n
+        modify (\envL -> over funVars (Map.insert n fvs) envL))
+checkLocalVariables _ c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Type)" "checkLocalVariables"
+
+checkArgs :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
+checkArgs vs (Type t) n = do
+  env <- get
+  forM_ vs (\(Var v) ->
+    if (Map.member v (view funs env))
+      then lift $ throwIO $ AlreadyUsedLocalVarException v
+      else do
+        let fvs = Map.insert v t $ (view funVars env) Map.! n
+        modify (\envL -> over funVars (Map.insert n fvs) envL))
+checkArgs _ c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(Type)" "checkArgs"
+
+transformArgs :: [Prgm] -> IO Args
+transformArgs [] = return []
+transformArgs ((VarLine (vs, (Type t))) : []) =
+  return $ fmap (\(Var v) -> (v, t)) vs
+transformArgs ((VarLine (vs, (Type t))) : ars) = do
+  trArs <- transformArgs ars
+  return $ (fmap (\(Var v) -> (v, t)) vs) ++ trArs
+transformArgs c = throwIO $ IncorrectConstructorException (show c) "[VarLine]" "transformArgs"
+
 checkFunDef :: Prgm -> [Operator] -> StateT InEnv IO()
-checkFunDef (FunDef (Var n, Type t) ars) ops = do
+checkFunDef def@(FunDef (Var n, Type t) ars) ops = do
   env <- get
   if (Map.member n (view funs env))
       || (Map.member n (view varTypes env))
     then lift $ throwIO $ AlreadyUsedFunctionNameException n
     else do
-      modify (\envL -> over funs (Map.insert n (t, ars)) envL)
+      arsArr <- lift $ transformArgs ars
+      modify (\envL -> over funs (Map.insert n (t, arsArr)) envL)
       modify (\envL -> over funOps (Map.insert n ops) envL)
+      collectLocalVariables ars def True
 checkFunDef c _ = lift $ throwIO $ IncorrectConstructorException (show c) "(FunDef)" "checkFunDef"
 
-checkLocalVariables :: [Prgm] -> Prgm -> Name -> StateT InEnv IO()
-checkLocalVariables = undefined
-
-collectLocalVariables :: [Prgm] -> Prgm -> StateT InEnv IO()
-collectLocalVariables [] _ = return ()
-collectLocalVariables ((VarLine (vs, t)) : []) (FunDef (Var n, _) _) =
-  checkLocalVariables vs t n
-collectLocalVariables ((VarLine (vs, t)) : ps) def@(FunDef (Var n, _) _) = do
-  checkLocalVariables vs t n
-  collectLocalVariables ps def
-collectLocalVariables c _ = lift $ throwIO $ IncorrectConstructorException (show c) "[VarLine]" "collectLocalVariables"
+collectLocalVariables :: [Prgm] -> Prgm -> Bool -> StateT InEnv IO()
+collectLocalVariables [] _ _ = return ()
+collectLocalVariables ((VarLine (vs, t)) : []) (FunDef (Var n, _) _) isArgs
+  | isArgs = checkArgs vs t n
+  | otherwise = checkLocalVariables vs t n
+collectLocalVariables ((VarLine (vs, t)) : ps) def@(FunDef (Var n, _) _) isArgs = do
+  if isArgs
+    then checkArgs vs t n
+    else checkLocalVariables vs t n
+  collectLocalVariables ps def isArgs
+collectLocalVariables c _ _ = lift $ throwIO $ IncorrectConstructorException (show c) "[VarLine]" "collectLocalVariables"
 
 collectFunsAndProcs :: [Prgm] -> StateT InEnv IO()
 collectFunsAndProcs [] = return ()
 collectFunsAndProcs ((Function def vb ops) : []) = do
   checkFunDef def ops
---  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
+  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def False)
 collectFunsAndProcs ((Function def vb ops) : fps) = do
   checkFunDef def ops
---  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def)
+  forM_ vb (\(VarBlock vl) -> collectLocalVariables vl def False)
   collectFunsAndProcs fps
 collectFunsAndProcs c = lift $ throwIO $ IncorrectConstructorException (show c) "[Function]" "collectFunsAndProcs"
 

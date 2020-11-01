@@ -27,7 +27,6 @@ import Lexer
   "begin"     { TBegin }
   "end"       { TEnd }
   "function"  { TFunction }
-  "procedure" { TProcedure }
   "readln"    { TReadln }
   "write"     { TWrite }
   "writeln"   { TWriteln }
@@ -106,19 +105,8 @@ Function:
 
 DefFunction :: { Prgm }
 DefFunction:
-  "function" variable "(" Arguments ")" ":" type            { FunDef (Var $2, Type $7) $4 }
+  "function" variable "(" DefVarBlock ")" ":" type          { FunDef (Var $2, Type $7) $4 }
   | "function" variable "(" ")" ":" type                    { FunDef (Var $2, Type $6) [] }
-  | "procedure" variable "(" Arguments ")"                  { FunDef (Var $2, Type "") $4 }
-  | "procedure" variable                                    { FunDef (Var $2, Type "") [] }
-
-Arguments :: { [Prgm] }
-Arguments:
-  Argument ";" Arguments                                    { (FunArg $1) : $3 }
-  | Argument                                                { [FunArg $1] }
-
-Argument :: { ([Prgm], Prgm) }
-Argument:
-  Variables ":" type                                        { ($1, Type $3) }
 
 Operators :: { [Operator] }
 Operators:
@@ -135,10 +123,6 @@ Operator:
   | "while" Expr "do" Operator                              { peWhile $2 [Operator $4] }
   | "if" Expr ThenPart ElsePart                             { peIf $2 $3 $4 }
   | "if" Expr ThenPart                                      { peIf $2 $3 [] }
-  | variable "(" Expr "," Expr ")"                          { peProcApply (Var $1) [$3, $5] False }
-  | variable "(" Expr ")"                                   { peProcApply (Var $1) [$3] False }
-  | variable "(" ")"                                        { peProcApply (Var $1) [] False }
-  | variable                                                { peProcApply (Var $1) [] True }
 
 ThenPart :: { [Operator] }
 ThenPart:
@@ -209,7 +193,6 @@ data Prgm =
   | VarLine ([Prgm], Prgm)
   | Function Prgm [Prgm] [Operator]
   | FunDef (Prgm, Prgm) [Prgm]
-  | FunArg ([Prgm], Prgm)
   | Var String
   | Type String
 
@@ -259,7 +242,6 @@ class Functor expr => PascalExpr expr where
   peWriteln   :: expr Variable -> expr ()
   peWhile     :: expr Variable -> [Operator] -> expr ()
   peIf        :: expr Variable -> [Operator] -> [Operator] -> expr ()
-  peProcApply :: Prgm -> [expr Variable] -> Bool -> expr ()
   peFunApply  :: Prgm -> [expr Variable] -> expr Variable
   peLT        :: expr Variable -> expr Variable -> expr Variable
   peGT        :: expr Variable -> expr Variable -> expr Variable

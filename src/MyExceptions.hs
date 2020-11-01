@@ -51,6 +51,16 @@ instance Show AlreadyUsedVarException where
     "AlreadyUsedVarException: Variable \"" ++ v
     ++ "\" is already used with type " ++ t ++ "."
 
+data AlreadyUsedLocalVarException =
+  AlreadyUsedLocalVarException Var
+
+instance Exception AlreadyUsedLocalVarException
+
+instance Show AlreadyUsedLocalVarException where
+  show (AlreadyUsedLocalVarException v) =
+    "AlreadyUsedLocalVarException: Variable name \"" ++ v
+    ++ "\" is already used."
+
 data AlreadyUsedFunctionNameException =
   AlreadyUsedFunctionNameException Name
 
@@ -80,3 +90,23 @@ instance Show NoSuchVarException where
   show (NoSuchVarException v) =
     "NoSuchVarException: There is no variable \"" ++ v
     ++ "\" in program."
+
+data NoSuchFunException =
+  NoSuchFunException Name
+
+instance Exception NoSuchFunException
+
+instance Show NoSuchFunException where
+  show (NoSuchFunException n) =
+    "NoSuchFunException: There is no function or procedure \"" ++ n
+    ++ "\" in program."
+
+data ArgumentsException =
+  ArgumentsException Name
+
+instance Exception ArgumentsException
+
+instance Show ArgumentsException where
+  show (ArgumentsException n) =
+    "ArgumentsException: There is not enough or "
+    ++ "too much arguments in function or procedure \"" ++ n ++ "\"."

@@ -48,12 +48,6 @@ instance PascalExpr OpToString where
                                      <> (OpToString (evalState (prettyPrintOperators e) (2, "")))
                                      <> OpToString ";\n  end"
                                 else OpToString (evalState (prettyPrintOperators e) (2, ""))))
-  peProcApply (Var f) vs isPr
-    | isPr && (null vs) = OpToString f
-    | otherwise = OpToString f <> OpToString "("
-                  <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init (fmap castST vs)))
-                  <> castST (last vs) <> OpToString ")"
-  peProcApply _ _ _ = OpToString "Incorrect constructor."
   peFunApply (Var f) vs = OpToString f <> OpToString "("
                           <> (foldl (<>) (OpToString "") $ fmap (<> OpToString ", ") (init vs))
                           <> (last vs) <> OpToString ")"
@@ -169,10 +163,6 @@ prettyPrintPrgm (FunDef (n, t)  ars) = do
         else do
           modify (\(tc, r) -> (tc, r ++ "): "))
           prettyPrintPrgm t
-prettyPrintPrgm (FunArg (vs, t)) = do
-  _ <- prettyPrintList comma vs
-  modify (\(tc, r) -> (tc, r ++ ": "))
-  prettyPrintPrgm t
 
 prettyPrint :: Prgm -> String
 prettyPrint p = evalState (prettyPrintPrgm p) (0, "")

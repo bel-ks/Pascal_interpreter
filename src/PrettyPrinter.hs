@@ -1,10 +1,22 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 
-module PrettyPrinter where
+module PrettyPrinter
+  ( prettyPrint
+  ) where
+
+import Syntax
+  ( Operator (..)
+  , PascalExpr (..)
+  , Prgm (..)
+  )
 
 import Control.Monad.State
-import Syntax
+  ( evalState
+  , gets
+  , modify
+  , State
+  )
 
 type TabCount = Int
 type PrEnv = (TabCount, String)

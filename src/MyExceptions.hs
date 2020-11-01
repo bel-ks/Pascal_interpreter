@@ -1,6 +1,22 @@
-module MyExceptions where
+module MyExceptions
+  ( AlreadyUsedVarException (..)
+  , AlreadyUsedLocalVarException (..)
+  , AlreadyUsedFunctionNameException (..)
+  , ArgumentsException (..)
+  , DifferentTypesException (..)
+  , IncorrectConstructorException (..)
+  , Name
+  , NotBoolTypeException (..)
+  , NoSuchVarException (..)
+  , NoSuchFunException (..)
+  , Type
+  , UndefinedActionException (..)
+  , Var
+  ) where
 
 import Control.Exception
+  ( Exception (..)
+  )
 
 type Var = String
 type Type = String
@@ -69,16 +85,6 @@ instance Exception AlreadyUsedFunctionNameException
 instance Show AlreadyUsedFunctionNameException where
   show (AlreadyUsedFunctionNameException n) =
     "AlreadyUsedFunctionNameException: Function name \"" ++ n
-    ++ "\" is already used."
-
-data AlreadyUsedProcedureNameException =
-  AlreadyUsedProcedureNameException Name
-
-instance Exception AlreadyUsedProcedureNameException
-
-instance Show AlreadyUsedProcedureNameException where
-  show (AlreadyUsedProcedureNameException n) =
-    "AlreadyUsedProcedureNameException: Procedure name \"" ++ n
     ++ "\" is already used."
 
 data NoSuchVarException =

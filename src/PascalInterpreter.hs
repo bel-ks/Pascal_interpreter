@@ -3,18 +3,70 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module PascalInterpreter where
+module PascalInterpreter
+  ( interpret
+  ) where
+
+import MyExceptions
+  ( AlreadyUsedLocalVarException (..)
+  , AlreadyUsedFunctionNameException (..)
+  , AlreadyUsedVarException (..)
+  , ArgumentsException (..)
+  , DifferentTypesException (..)
+  , IncorrectConstructorException (..)
+  , Name
+  , NoSuchFunException (..)
+  , NoSuchVarException (..)
+  , NotBoolTypeException (..)
+  , Type
+  , Var
+  )
+import PrettyPrinter
+  ( prettyPrint
+  )
+import Syntax
+  ( Number (..)
+  , Operator (..)
+  , PascalExpr (..)
+  , Prgm (..)
+  , Variable (..)
+  )
 
 import Control.Exception
+  ( throwIO
+  )
 import Control.Lens
+  ( makeLenses
+  , over
+  , view
+  )
 import Control.Monad
+  ( forM_
+  )
 import Control.Monad.Trans
+  ( lift
+  )
 import Control.Monad.Trans.State
+  ( evalStateT
+  , get
+  , modify
+  , StateT
+  )
 import Data.Bits
+  ( (.|.)
+  , (.&.)
+  , complement
+  , xor
+  )
 import qualified Data.Map as Map
-import MyExceptions
-import PrettyPrinter
-import Syntax
+  ( (!)
+  , empty
+  , insert
+  , lookup
+  , Map
+  , member
+  , union
+  )
 
 type VarTypes = Map.Map Var Type
 type VarBoolValues = Map.Map Var Bool

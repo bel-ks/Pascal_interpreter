@@ -1,12 +1,29 @@
 module Main where
 
-import Control.Exception
 import Lexer
+  ( alexScanTokens
+  )
 import MyExceptions
+  ( UndefinedActionException (..)
+  )
 import PascalInterpreter
+  ( interpret
+  )
 import PrettyPrinter
+  ( prettyPrint
+  )
 import Syntax
+  ( parseProgram
+  )
+
+import Control.Exception
+  ( throwIO
+  )
 import System.IO
+  ( IOMode (ReadMode)
+  , openFile
+  , hGetContents
+  )
 
 main :: IO()
 main = do
